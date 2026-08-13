@@ -4,6 +4,7 @@ using System;
 using System.Data;
 using System.Drawing;
 using System.Windows.Forms;
+using Guna.UI2.WinForms;
 using InventoryApp.Data;
 using Microsoft.Data.Sqlite;
 
@@ -19,49 +20,52 @@ namespace InventoryApp
 
         private string? _codeBarreActuel = null;
 
-        private ComboBox cmbModele = null!;
-        private Button btnToggleNouveauModele = null!;
+        // --- Composants Guna UI ---
+        private Guna2BorderlessForm borderlessForm = null!;
+        private Guna2Panel pnlHeader = null!;
+        private Label lblHeaderTitle = null!;
+        private Guna2ControlBox btnCloseHeader = null!;
 
-        private Panel pnlNouveauModele = null!;
-        private ComboBox cmbCategorie = null!;
-        private Button btnToggleNouvelleCategorie = null!;
-        private Panel pnlNouvelleCategorie = null!;
-        private TextBox txtCodeCategorie = null!;
-        private TextBox txtDesignationCategorie = null!;
-        private Button btnEnregistrerCategorie = null!;
+        private Guna2ComboBox cmbModele = null!;
+        private Guna2Button btnToggleNouveauModele = null!;
 
-        private ComboBox cmbMarque = null!;
-        private Button btnToggleNouvelleMarque = null!;
-        private Panel pnlNouvelleMarque = null!;
-        private TextBox txtCodeMarque = null!;
-        private TextBox txtDesignationMarque = null!;
-        private Button btnEnregistrerMarque = null!;
+        private Guna2Panel pnlNouveauModele = null!;
+        private Guna2ComboBox cmbCategorie = null!;
+        private Guna2Button btnToggleNouvelleCategorie = null!;
+        private Guna2Panel pnlNouvelleCategorie = null!;
+        private Guna2TextBox txtCodeCategorie = null!;
+        private Guna2TextBox txtDesignationCategorie = null!;
+        private Guna2Button btnEnregistrerCategorie = null!;
 
-        private TextBox txtReferenceModele = null!;
-        private TextBox txtDesignationModele = null!;
-        private TextBox txtNumeroModeleConstructeur = null!;
-        private Button btnEnregistrerModele = null!;
+        private Guna2ComboBox cmbMarque = null!;
+        private Guna2Button btnToggleNouvelleMarque = null!;
+        private Guna2Panel pnlNouvelleMarque = null!;
+        private Guna2TextBox txtCodeMarque = null!;
+        private Guna2TextBox txtDesignationMarque = null!;
+        private Guna2Button btnEnregistrerMarque = null!;
 
-        private TextBox txtNumeroSerie = null!;
-        private DateTimePicker dtpDateAcquisition = null!;
-        private ComboBox cmbStatut = null!;
-        private ComboBox cmbEtat = null!;
-        private CheckBox chkGenererBarcode = null!;
+        private Guna2TextBox txtReferenceModele = null!;
+        private Guna2TextBox txtDesignationModele = null!;
+        private Guna2TextBox txtNumeroModeleConstructeur = null!;
+        private Guna2Button btnEnregistrerModele = null!;
+
+        private Guna2TextBox txtNumeroSerie = null!;
+        private Guna2DateTimePicker dtpDateAcquisition = null!;
+        private Guna2ComboBox cmbStatut = null!;
+        private Guna2ComboBox cmbEtat = null!;
+        private Guna2CheckBox chkGenererBarcode = null!;
         private Label lblCodeBarreActuel = null!;
 
-        private Button btnEnregistrer = null!;
-        private Button btnAnnuler = null!;
+        private Guna2Button btnEnregistrer = null!;
+        private Guna2Button btnAnnuler = null!;
 
         private bool showNouveauModele = false;
         private bool showNouvelleCategorie = false;
         private bool showNouvelleMarque = false;
 
         private const int MARGE = 20;
-        private const int LARGEUR_CHAMP = 380;
+        private const int LARGEUR_CHAMP = 400;
 
-        // Constructeur de compatibilite (0 argument) : au cas ou du code
-        // existant appelle "new FrmAjouterArticle()" sans passer Form1.
-        // Equivaut au mode AJOUT sans rafraichissement automatique de Form1.
         public FrmAjouterArticle() : this(null, null) { }
 
         public FrmAjouterArticle(Form1? mainForm) : this(mainForm, null) { }
@@ -71,13 +75,12 @@ namespace InventoryApp
             _mainForm = mainForm;
             _equipementIdEnEdition = equipementIdEnEdition;
 
-            Text = EnModeEdition ? $"Modifier l'article #{equipementIdEnEdition}" : "Ajouter un article";
-            Width = 460;
+            // Paramètres de la fenêtre sans bordure
+            FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.CenterParent;
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = false;
-            MinimizeBox = false;
-            AutoScroll = true;
+            BackColor = Color.FromArgb(248, 250, 252); // Gris/Blanc médical très élégant
+            Width = 445;
+            Height = 400;
 
             ConstruireControles();
             Relayout();
@@ -93,40 +96,120 @@ namespace InventoryApp
 
         private void ConstruireControles()
         {
-            cmbModele = new ComboBox { Left = MARGE, Width = 280, DropDownStyle = ComboBoxStyle.DropDownList };
-            btnToggleNouveauModele = new Button { Left = MARGE + 290, Width = 110, Text = "+ Nouveau" };
+            // Arrondis et ombre de la fenêtre
+            borderlessForm = new Guna2BorderlessForm
+            {
+                ContainerControl = this,
+                BorderRadius = 14,
+                DragForm = true,
+                HasFormShadow = true
+            };
+
+            // En-tête personnalisé
+            pnlHeader = new Guna2Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 50,
+                FillColor = Color.FromArgb(30, 41, 59), // Dark Slate
+            };
+
+            lblHeaderTitle = new Label
+            {
+                Text = EnModeEdition ? $"Modifier l'article #{_equipementIdEnEdition}" : "Ajouter un article",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.Transparent,
+                AutoSize = true,
+                Left = 20,
+                Top = 14
+            };
+
+            btnCloseHeader = new Guna2ControlBox
+            {
+                ControlBoxType = Guna.UI2.WinForms.Enums.ControlBoxType.CloseBox,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Left = Width - 40,
+                Top = 10,
+                Size = new Size(30, 30),
+                FillColor = Color.Transparent,
+                IconColor = Color.White,
+                BorderRadius = 6
+            };
+            pnlHeader.Controls.Add(lblHeaderTitle);
+            pnlHeader.Controls.Add(btnCloseHeader);
+
+            // Modèle & Bouton Toggle
+            cmbModele = new Guna2ComboBox
+            {
+                Left = MARGE,
+                Width = 275,
+                Height = 36,
+                BorderRadius = 6,
+                Font = new Font("Segoe UI", 9.5F),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+
+            btnToggleNouveauModele = new Guna2Button
+            {
+                Left = MARGE + 285,
+                Width = 115,
+                Height = 36,
+                Text = "+ Nouveau",
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                BorderRadius = 6,
+                FillColor = Color.FromArgb(59, 130, 246),
+                ForeColor = Color.White,
+                Cursor = Cursors.Hand
+            };
             btnToggleNouveauModele.Click += (s, e) => { showNouveauModele = !showNouveauModele; Relayout(); };
 
-            pnlNouveauModele = new Panel { Left = MARGE, Width = LARGEUR_CHAMP, BorderStyle = BorderStyle.FixedSingle };
+            // Panel de création de Modèle
+            pnlNouveauModele = new Guna2Panel
+            {
+                Left = MARGE,
+                Width = LARGEUR_CHAMP,
+                BorderRadius = 8,
+                BorderColor = Color.FromArgb(203, 213, 225),
+                BorderThickness = 1,
+                FillColor = Color.White
+            };
 
-            cmbCategorie = new ComboBox { Left = 10, Width = 240, DropDownStyle = ComboBoxStyle.DropDownList };
-            btnToggleNouvelleCategorie = new Button { Left = 260, Width = 100, Text = "+ Nouvelle" };
+            cmbCategorie = new Guna2ComboBox { Left = 10, Width = 250, Height = 34, BorderRadius = 6, DropDownStyle = ComboBoxStyle.DropDownList };
+            btnToggleNouvelleCategorie = new Guna2Button { Left = 270, Width = 115, Height = 34, Text = "+ Nouvelle", BorderRadius = 6, Font = new Font("Segoe UI", 8.5F, FontStyle.Bold) };
             btnToggleNouvelleCategorie.Click += (s, e) => { showNouvelleCategorie = !showNouvelleCategorie; Relayout(); };
 
-            pnlNouvelleCategorie = new Panel { Left = 10, Width = 350, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.WhiteSmoke };
-            txtCodeCategorie = new TextBox { Left = 8, Top = 8, Width = 80, PlaceholderText = "Code (ex: MOB)" };
-            txtDesignationCategorie = new TextBox { Left = 96, Top = 8, Width = 160, PlaceholderText = "Désignation" };
-            btnEnregistrerCategorie = new Button { Left = 262, Top = 6, Width = 80, Text = "Créer" };
+            pnlNouvelleCategorie = new Guna2Panel { Left = 10, Width = 375, Height = 46, BorderRadius = 6, FillColor = Color.FromArgb(241, 245, 249) };
+            txtCodeCategorie = new Guna2TextBox { Left = 8, Top = 7, Width = 100, Height = 32, BorderRadius = 6, PlaceholderText = "Code (ex: MOB)" };
+            txtDesignationCategorie = new Guna2TextBox { Left = 114, Top = 7, Width = 160, Height = 32, BorderRadius = 6, PlaceholderText = "Désignation" };
+            btnEnregistrerCategorie = new Guna2Button { Left = 280, Top = 7, Width = 85, Height = 32, BorderRadius = 6, Text = "Créer", FillColor = Color.FromArgb(16, 185, 129) };
             btnEnregistrerCategorie.Click += BtnEnregistrerCategorie_Click;
             pnlNouvelleCategorie.Controls.AddRange(new Control[] { txtCodeCategorie, txtDesignationCategorie, btnEnregistrerCategorie });
-            pnlNouvelleCategorie.Height = 42;
 
-            cmbMarque = new ComboBox { Left = 10, Width = 240, DropDownStyle = ComboBoxStyle.DropDownList };
-            btnToggleNouvelleMarque = new Button { Left = 260, Width = 100, Text = "+ Nouvelle" };
+            cmbMarque = new Guna2ComboBox { Left = 10, Width = 250, Height = 34, BorderRadius = 6, DropDownStyle = ComboBoxStyle.DropDownList };
+            btnToggleNouvelleMarque = new Guna2Button { Left = 270, Width = 115, Height = 34, Text = "+ Nouvelle", BorderRadius = 6, Font = new Font("Segoe UI", 8.5F, FontStyle.Bold) };
             btnToggleNouvelleMarque.Click += (s, e) => { showNouvelleMarque = !showNouvelleMarque; Relayout(); };
 
-            pnlNouvelleMarque = new Panel { Left = 10, Width = 350, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.WhiteSmoke };
-            txtCodeMarque = new TextBox { Left = 8, Top = 8, Width = 80, PlaceholderText = "Code (ex: HP)" };
-            txtDesignationMarque = new TextBox { Left = 96, Top = 8, Width = 160, PlaceholderText = "Désignation" };
-            btnEnregistrerMarque = new Button { Left = 262, Top = 6, Width = 80, Text = "Créer" };
+            pnlNouvelleMarque = new Guna2Panel { Left = 10, Width = 375, Height = 46, BorderRadius = 6, FillColor = Color.FromArgb(241, 245, 249) };
+            txtCodeMarque = new Guna2TextBox { Left = 8, Top = 7, Width = 100, Height = 32, BorderRadius = 6, PlaceholderText = "Code (ex: HP)" };
+            txtDesignationMarque = new Guna2TextBox { Left = 114, Top = 7, Width = 160, Height = 32, BorderRadius = 6, PlaceholderText = "Désignation" };
+            btnEnregistrerMarque = new Guna2Button { Left = 280, Top = 7, Width = 85, Height = 32, BorderRadius = 6, Text = "Créer", FillColor = Color.FromArgb(16, 185, 129) };
             btnEnregistrerMarque.Click += BtnEnregistrerMarque_Click;
             pnlNouvelleMarque.Controls.AddRange(new Control[] { txtCodeMarque, txtDesignationMarque, btnEnregistrerMarque });
-            pnlNouvelleMarque.Height = 42;
 
-            txtReferenceModele = new TextBox { Left = 10, Width = 350, PlaceholderText = "Référence interne (unique)" };
-            txtDesignationModele = new TextBox { Left = 10, Width = 350, PlaceholderText = "Désignation (ex: HP LaserJet 1020)" };
-            txtNumeroModeleConstructeur = new TextBox { Left = 10, Width = 350, PlaceholderText = "N° modèle constructeur (optionnel)" };
-            btnEnregistrerModele = new Button { Left = 250, Width = 110, Text = "Créer le modèle" };
+            txtReferenceModele = new Guna2TextBox { Left = 10, Width = 375, Height = 34, BorderRadius = 6, PlaceholderText = "Référence interne (unique)" };
+            txtDesignationModele = new Guna2TextBox { Left = 10, Width = 375, Height = 34, BorderRadius = 6, PlaceholderText = "Désignation (ex: HP LaserJet 1020)" };
+            txtNumeroModeleConstructeur = new Guna2TextBox { Left = 10, Width = 375, Height = 34, BorderRadius = 6, PlaceholderText = "N° modèle constructeur (optionnel)" };
+
+            btnEnregistrerModele = new Guna2Button
+            {
+                Left = 235,
+                Width = 150,
+                Height = 36,
+                Text = "Créer le modèle",
+                BorderRadius = 6,
+                FillColor = Color.FromArgb(16, 185, 129),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
             btnEnregistrerModele.Click += BtnEnregistrerModele_Click;
 
             pnlNouveauModele.Controls.AddRange(new Control[]
@@ -137,59 +220,134 @@ namespace InventoryApp
                 btnEnregistrerModele
             });
 
-            txtNumeroSerie = new TextBox { Left = MARGE, Width = LARGEUR_CHAMP, PlaceholderText = "N° série (optionnel)" };
-
-            dtpDateAcquisition = new DateTimePicker
+            // Numéro de Série
+            txtNumeroSerie = new Guna2TextBox
             {
                 Left = MARGE,
-                Width = 200,
-                Format = DateTimePickerFormat.Short,
-                Value = DateTime.Today
+                Width = LARGEUR_CHAMP,
+                Height = 36,
+                BorderRadius = 6,
+                Font = new Font("Segoe UI", 9.5F),
+                PlaceholderText = "N° série (optionnel)"
             };
 
-            cmbStatut = new ComboBox { Left = MARGE, Width = 200, DropDownStyle = ComboBoxStyle.DropDownList };
+            // Date d'acquisition
+            dtpDateAcquisition = new Guna2DateTimePicker
+            {
+                Left = MARGE,
+                Width = LARGEUR_CHAMP,
+                Height = 36,
+                BorderRadius = 6,
+                Font = new Font("Segoe UI", 9F),
+                Format = DateTimePickerFormat.Short,
+                Value = DateTime.Today,
+                FillColor = Color.White,
+                BorderColor = Color.FromArgb(213, 218, 223),
+                BorderThickness = 1
+            };
+
+            // Statut
+            cmbStatut = new Guna2ComboBox
+            {
+                Left = MARGE,
+                Width = LARGEUR_CHAMP,
+                Height = 36,
+                BorderRadius = 6,
+                Font = new Font("Segoe UI", 9.5F),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
             cmbStatut.Items.AddRange(new object[] { "En stock", "Affecté", "En prêt", "En panne", "En réparation", "Réformé" });
             cmbStatut.SelectedIndex = 0;
 
-            cmbEtat = new ComboBox { Left = MARGE, Width = 200, DropDownStyle = ComboBoxStyle.DropDownList };
+            // État
+            cmbEtat = new Guna2ComboBox
+            {
+                Left = MARGE,
+                Width = LARGEUR_CHAMP,
+                Height = 36,
+                BorderRadius = 6,
+                Font = new Font("Segoe UI", 9.5F),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
             cmbEtat.Items.AddRange(new object[] { "Neuf", "Bon", "Usé", "Endommagé", "Hors service" });
-            cmbEtat.SelectedIndex = 1; // "Bon" par défaut
+            cmbEtat.SelectedIndex = 1;
 
-            chkGenererBarcode = new CheckBox { Text = "Générer le code-barre immédiatement", Left = MARGE, Width = LARGEUR_CHAMP };
-            lblCodeBarreActuel = new Label { Left = MARGE, Width = LARGEUR_CHAMP, ForeColor = Color.DarkGreen, Visible = false };
+            // Barcode Checkbox & Label
+            chkGenererBarcode = new Guna2CheckBox
+            {
+                Text = "Générer le code-barre immédiatement",
+                Left = MARGE,
+                Width = LARGEUR_CHAMP,
+                Font = new Font("Segoe UI", 9F),
+                AutoSize = true,
+                CheckedState = { FillColor = Color.FromArgb(59, 130, 246) }
+            };
 
-            btnEnregistrer = new Button { Text = EnModeEdition ? "Enregistrer les modifications" : "Enregistrer", Width = EnModeEdition ? 190 : 100 };
-            btnAnnuler = new Button { Text = "Annuler", Width = 90 };
+            lblCodeBarreActuel = new Label
+            {
+                Left = MARGE,
+                Width = LARGEUR_CHAMP,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(16, 185, 129),
+                Visible = false
+            };
+
+            // Boutons d'Action
+            btnEnregistrer = new Guna2Button
+            {
+                Text = EnModeEdition ? "Enregistrer les modifications" : "Enregistrer",
+                Height = 38,
+                FillColor = Color.FromArgb(16, 185, 129), // Vert Emerald
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                BorderRadius = 8,
+                Cursor = Cursors.Hand
+            };
+
+            btnAnnuler = new Guna2Button
+            {
+                Text = "Annuler",
+                Width = 100,
+                Height = 38,
+                FillColor = Color.FromArgb(239, 68, 68), // Rouge Corail
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                BorderRadius = 8,
+                Cursor = Cursors.Hand
+            };
+
             btnEnregistrer.Click += BtnEnregistrer_Click;
             btnAnnuler.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
 
             Controls.AddRange(new Control[]
             {
+                pnlHeader,
                 cmbModele, btnToggleNouveauModele, pnlNouveauModele,
-                txtNumeroSerie, dtpDateAcquisition, cmbStatut, cmbEtat, chkGenererBarcode, lblCodeBarreActuel,
+                txtNumeroSerie, dtpDateAcquisition, cmbStatut, cmbEtat,
+                chkGenererBarcode, lblCodeBarreActuel,
                 btnEnregistrer, btnAnnuler
             });
         }
 
         private void Relayout()
         {
-            int y = 20;
+            int y = 65; // Espace après l'en-tête
 
             cmbModele.Top = y;
             btnToggleNouveauModele.Top = y;
             btnToggleNouveauModele.Text = showNouveauModele ? "- Fermer" : "+ Nouveau";
-            y += 35;
+            y += 44;
 
             pnlNouveauModele.Top = y;
             pnlNouveauModele.Visible = showNouveauModele;
 
             if (showNouveauModele)
             {
-                int yi = 10;
+                int yi = 12;
                 cmbCategorie.Top = yi;
                 btnToggleNouvelleCategorie.Top = yi;
                 btnToggleNouvelleCategorie.Text = showNouvelleCategorie ? "- Fermer" : "+ Nouvelle";
-                yi += 32;
+                yi += 40;
 
                 pnlNouvelleCategorie.Top = yi;
                 pnlNouvelleCategorie.Visible = showNouvelleCategorie;
@@ -198,29 +356,29 @@ namespace InventoryApp
                 cmbMarque.Top = yi;
                 btnToggleNouvelleMarque.Top = yi;
                 btnToggleNouvelleMarque.Text = showNouvelleMarque ? "- Fermer" : "+ Nouvelle";
-                yi += 32;
+                yi += 40;
 
                 pnlNouvelleMarque.Top = yi;
                 pnlNouvelleMarque.Visible = showNouvelleMarque;
                 if (showNouvelleMarque) yi += pnlNouvelleMarque.Height + 8;
 
-                txtReferenceModele.Top = yi; yi += 28;
-                txtDesignationModele.Top = yi; yi += 28;
-                txtNumeroModeleConstructeur.Top = yi; yi += 28;
-                btnEnregistrerModele.Top = yi; yi += 34;
+                txtReferenceModele.Top = yi; yi += 40;
+                txtDesignationModele.Top = yi; yi += 40;
+                txtNumeroModeleConstructeur.Top = yi; yi += 40;
+                btnEnregistrerModele.Top = yi; yi += 44;
 
-                pnlNouveauModele.Height = yi + 5;
-                y += pnlNouveauModele.Height + 10;
+                pnlNouveauModele.Height = yi + 8;
+                y += pnlNouveauModele.Height + 12;
             }
             else
             {
                 pnlNouveauModele.Height = 0;
             }
 
-            txtNumeroSerie.Top = y; y += 34;
-            dtpDateAcquisition.Top = y; y += 34;
-            cmbStatut.Top = y; y += 34;
-            cmbEtat.Top = y; y += 34;
+            txtNumeroSerie.Top = y; y += 44;
+            dtpDateAcquisition.Top = y; y += 44;
+            cmbStatut.Top = y; y += 44;
+            cmbEtat.Top = y; y += 44;
 
             bool aDejaUnBarcode = EnModeEdition && !string.IsNullOrEmpty(_codeBarreActuel);
             chkGenererBarcode.Visible = !aDejaUnBarcode;
@@ -235,16 +393,25 @@ namespace InventoryApp
             {
                 chkGenererBarcode.Top = y;
             }
-            y += 34;
+            y += 38;
+
+            // Dimensions et alignement dynamique des boutons
+            int largeurBtnEnregistrer = EnModeEdition ? 210 : 120;
+            btnEnregistrer.Width = largeurBtnEnregistrer;
+
+            btnAnnuler.Top = y;
+            btnAnnuler.Left = MARGE + LARGEUR_CHAMP - (btnAnnuler.Width + btnEnregistrer.Width + 10);
 
             btnEnregistrer.Top = y;
-            btnEnregistrer.Left = ClientSize.Width - (EnModeEdition ? 300 : 220);
-            btnAnnuler.Top = y;
-            btnAnnuler.Left = ClientSize.Width - 110;
-            y += 45;
+            btnEnregistrer.Left = MARGE + LARGEUR_CHAMP - btnEnregistrer.Width;
 
-            this.AutoScrollMinSize = new Size(0, y);
+            y += btnEnregistrer.Height + 20;
+
+            // Redimensionnement automatique de la fenêtre globale
+            this.Height = y;
         }
+
+        // --- Logique Métier & Chargement Données ---
 
         private void ChargerCategories()
         {
@@ -257,7 +424,7 @@ namespace InventoryApp
             cmbCategorie.DataSource = t;
             cmbCategorie.DisplayMember = "designation";
             cmbCategorie.ValueMember = "id";
-            cmbCategorie.SelectedIndex = 0; // "-- Aucune --" par défaut
+            cmbCategorie.SelectedIndex = 0;
         }
 
         private void ChargerMarques()
@@ -271,7 +438,7 @@ namespace InventoryApp
             cmbMarque.DataSource = t;
             cmbMarque.DisplayMember = "designation";
             cmbMarque.ValueMember = "id";
-            cmbMarque.SelectedIndex = 0; // "-- Aucune --" par défaut
+            cmbMarque.SelectedIndex = 0;
         }
 
         private void ChargerModeles()
@@ -384,10 +551,6 @@ namespace InventoryApp
 
         private void BtnEnregistrerModele_Click(object? sender, EventArgs e)
         {
-            // Catégorie et Marque sont FACULTATIVES : le schéma DB les autorise
-            // à NULL (ex: "Bureau", "Chaise" n'ont souvent ni marque connue ni
-            // catégorie standardisée). Seuls référence et désignation sont
-            // réellement obligatoires.
             if (string.IsNullOrWhiteSpace(txtReferenceModele.Text) || string.IsNullOrWhiteSpace(txtDesignationModele.Text))
             {
                 MessageBox.Show("Référence et désignation du modèle obligatoires.", "Champs manquants", MessageBoxButtons.OK, MessageBoxIcon.Warning);
