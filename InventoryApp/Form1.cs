@@ -87,6 +87,7 @@ namespace InventoryApp
             ("Référence Modèle", "Référence Modèle"),
             ("Marque",           "Marque"),
             ("Catégorie",        "Catégorie"),
+            ("Utilisé par",      "Utilisé par"),
             ("Statut",           "Statut"),
             ("Code-Barre",       "Code-Barre"),
         };
@@ -157,30 +158,46 @@ namespace InventoryApp
         public void ChargerEquipements()
         {
             string sql = @"
-                SELECT 
-                    e.id AS 'ID',
-                    c.designation AS 'Catégorie',
-                    mq.designation AS 'Marque',
-                    m.designation AS 'Modèle',
-                    m.reference AS 'Référence Modèle',
-                    e.numero_serie AS 'N° Série',
-                    e.statut AS 'Statut',
-                    e.etat AS 'État',
-                    e.code_barre AS 'Code-Barre',
-                    e.date_acquisition AS 'Date Acquisition',
-                    e.date_modification AS 'Date Modification'
-                FROM Equipement e
-                JOIN Modele m ON e.modele_id = m.id
-                LEFT JOIN Marque mq ON m.marque_id = mq.id
-                LEFT JOIN Categorie c ON m.categorie_id = c.id
-                ORDER BY e.id DESC";
+        SELECT 
+            e.id AS 'ID',
+            c.designation AS 'Catégorie',
+            mq.designation AS 'Marque',
+            m.designation AS 'Modèle',
+            m.reference AS 'Référence Modèle',
+            e.numero_serie AS 'N° Série',
+            e.etat AS 'État',
+            e.statut AS 'Statut',
+            COALESCE((
+                SELECT GROUP_CONCAT(emp_info, ' | ')
+                FROM (
+                    SELECT emp.nom || ' ' || emp.prenom || ' (' || COALESCE(emp.departement, 'Sans Service') || ')' AS emp_info
+                    FROM Ligne_mouvement lm
+                    JOIN Mouvement mvt ON lm.mouvement_id = mvt.id
+                    JOIN Employe emp ON mvt.employe_id = emp.id
+                    WHERE lm.equipement_id = e.id
+                    ORDER BY mvt.date_mouvement DESC, mvt.id DESC
+                    LIMIT 3
+                )
+            ), '') AS 'Utilisé par',
+            e.code_barre AS 'Code-Barre',
+            e.date_acquisition AS 'Date Acquisition'
+        FROM Equipement e
+        JOIN Modele m ON e.modele_id = m.id
+        LEFT JOIN Marque mq ON m.marque_id = mq.id
+        LEFT JOIN Categorie c ON m.categorie_id = c.id
+        ORDER BY e.id DESC";
 
             table_equipements.AutoGenerateColumns = true;
             table_equipements.DataSource = DatabaseHelper.ExecuteQuery(sql);
 
+            if (table_equipements.Columns.Contains("Utilisé par"))
+            {
+                table_equipements.Columns["Utilisé par"].ValueType = typeof(string);
+            }
+
             AjouterColonnesActions();
             PeuplerListeFiltrage();
-            AppliquerFiltre(); // réapplique le filtre en cours, s'il y en a un
+            AppliquerFiltre();
         }
 
         private void AjouterColonnesActions()
@@ -417,42 +434,45 @@ namespace InventoryApp
                 return;
             }
 
-            var colonnesAffichees = new[]
+            // --- MODIFICATION ICI : Récupérer dynamiquement SEULEMENT les colonnes VISIBLES ---
+            var colonnesAffichees = new System.Collections.Generic.List<DataGridViewColumn>();
+            foreach (DataGridViewColumn col in table_equipements.Columns)
             {
-                "ID", "Catégorie","Marque","Modèle", "Référence Modèle","N° Série",
-                  "Statut","État", "Code-Barre", "Date Acquisition"
-            };
+                // On ne prend que les colonnes visibles et on exclut les boutons d'action
+                if (col.Visible && col.Name != "colModifier" && col.Name != "colSupprimer")
+                {
+                    colonnesAffichees.Add(col);
+                }
+            }
 
             var html = new System.Text.StringBuilder();
             html.Append("<html><head><meta charset='utf-8'><style>");
             html.Append("body{font-family:Arial, sans-serif; margin:25px; color:#000;}");
 
-            // --- Police Arabe Traditionnelle Officielle (Style exact de la photo) ---
+            // --- Police Arabe Traditionnelle Officielle ---
             html.Append(".header-officiel { font-family: Arial, 'Times New Roman', serif; margin-bottom: 25px; }");
             html.Append(".republique { font-size: 16px; font-weight: bold; text-align: center; text-decoration: underline; text-underline-offset: 4px; margin-bottom: 12px; letter-spacing: 0.5px; }");
             html.Append(".ministere { font-size: 13px; font-weight: bold; text-align: right; direction: rtl; line-height: 1.6; }");
             html.Append(".divider { border-bottom: 1.5px solid #000; margin-top: 15px; margin-bottom: 20px; }");
 
-            // --- Contenu & Groupes (SANS RECTANGLES PLEINS) ---
+            // --- Contenu & Groupes ---
             html.Append("h1{font-size:18px; text-align:center; color:#1a237e; margin:15px 0 5px 0;}");
             html.Append(".info-date{font-size:11px; color:#333; text-align:center; margin-bottom:25px;}");
 
-            // Style de titre de groupe : Simple et professionnel (pas de fond bleu opaque)
-            html.Append("h2{font-size:14px; color:#1a237e; border-bottom:2px solid #1a237e; padding-bottom:3px; margin-top:25px; margin-bottom:10px;}");
+            html.Append("h2{font-size:13px; color:#1a237e;padding-bottom:3px; margin-top:25px; margin-bottom:10px;}");
 
             html.Append("table{border-collapse:collapse; width:100%; margin-bottom:15px;}");
             html.Append("th,td{border:1px solid #777; padding:5px 8px; font-size:11px; text-align:left;}");
             html.Append("th{background:#f0f2f5; font-weight:bold;}");
 
-            // Gestion spécifique de l'impression
             html.Append("@media print{");
             html.Append("  body{margin:10mm;}");
-            html.Append("  .no-print{display:none;}"); // Cache uniquement les instructions de touches
+            html.Append("  .no-print{display:none;}");
             html.Append("}");
 
             html.Append("</style></head><body>");
 
-            // --- En-tête administratif officiel ---
+            // En-tête officiel
             html.Append("<div class='header-officiel'>");
             html.Append("  <div class='republique'>الجمهورية الجزائرية الديمقراطية الشعبية</div>");
             html.Append("  <div class='ministere'>");
@@ -464,25 +484,34 @@ namespace InventoryApp
             html.Append("  <div class='divider'></div>");
             html.Append("</div>");
 
-            // --- Titre du document ---
             html.Append($"<h1>Inventaire — groupé par {System.Net.WebUtility.HtmlEncode(colonneGroupement)}</h1>");
-
-            // La date reste visible à l'impression, seul le texte "appuyez sur Ctrl+P..." disparaît
             html.Append($"<div class='info-date'>Généré le {DateTime.Now:dd/MM/yyyy HH:mm} <span class='no-print'>— (Appuyez sur Ctrl+P pour imprimer)</span></div>");
 
-            // --- Listes des équipements ---
+            // --- Génération dynamique du tableau HTML selon les colonnes sélectionnées ---
             foreach (var groupe in groupes)
             {
-                html.Append($" {System.Net.WebUtility.HtmlEncode(groupe.Key)} : ({groupe.Value.Count} équipement(s))");
+                html.Append($"<h2>{System.Net.WebUtility.HtmlEncode(groupe.Key)} : ({groupe.Value.Count} équipement(s))</h2>");
                 html.Append("<table><tr>");
-                foreach (var col in colonnesAffichees) html.Append($"<th>{col}</th>");
+
+                // En-têtes HTML basés sur les colonnes sélectionnées
+                foreach (var col in colonnesAffichees)
+                    html.Append($"<th>{System.Net.WebUtility.HtmlEncode(col.HeaderText)}</th>");
+
                 html.Append("</tr>");
 
+                // Lignes du tableau
                 foreach (var row in groupe.Value)
                 {
                     html.Append("<tr>");
                     foreach (var col in colonnesAffichees)
-                        html.Append($"<td>{System.Net.WebUtility.HtmlEncode(row[col]?.ToString() ?? "")}</td>");
+                    {
+                        // Récupération de la valeur avec le nom de champ de la DataColumn correspondante
+                        string fieldName = col.DataPropertyName;
+                        if (string.IsNullOrEmpty(fieldName)) fieldName = col.Name;
+
+                        string val = dt.Columns.Contains(fieldName) ? row[fieldName]?.ToString() ?? "" : "";
+                        html.Append($"<td>{System.Net.WebUtility.HtmlEncode(val)}</td>");
+                    }
                     html.Append("</tr>");
                 }
                 html.Append("</table>");
@@ -498,7 +527,6 @@ namespace InventoryApp
             var psi = new System.Diagnostics.ProcessStartInfo(tempFile) { UseShellExecute = true };
             System.Diagnostics.Process.Start(psi);
         }
-
 
 
         // =====================================================
@@ -528,5 +556,26 @@ namespace InventoryApp
             AfficherConteneur(repots_container);
         }
 
+        private void btnChoisirColonnes_Click(object sender, EventArgs e)
+        {
+            Guna.UI2.WinForms.Guna2ContextMenuStrip menu = new Guna.UI2.WinForms.Guna2ContextMenuStrip();
+
+            foreach (DataGridViewColumn col in table_equipements.Columns)
+            {
+                ToolStripMenuItem item = new ToolStripMenuItem(col.HeaderText);
+                item.Checked = col.Visible;
+                item.CheckOnClick = true;
+
+                item.Click += (s, args) =>
+                {
+                    col.Visible = item.Checked; // Cocher = Afficher / Décocher = Masquer
+                };
+
+                menu.Items.Add(item);
+            }
+
+            // Afficher le menu juste en dessous du bouton
+            menu.Show(btnChoisirColonnes, new Point(0, btnChoisirColonnes.Height));
+        }
     }
 }

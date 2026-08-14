@@ -46,7 +46,6 @@ namespace InventoryApp
 
         private Guna2TextBox txtReferenceModele = null!;
         private Guna2TextBox txtDesignationModele = null!;
-        private Guna2TextBox txtNumeroModeleConstructeur = null!;
         private Guna2Button btnEnregistrerModele = null!;
 
         private Guna2TextBox txtNumeroSerie = null!;
@@ -198,7 +197,7 @@ namespace InventoryApp
 
             txtReferenceModele = new Guna2TextBox { Left = 10, Width = 375, Height = 34, BorderRadius = 6, PlaceholderText = "Référence interne (unique)" };
             txtDesignationModele = new Guna2TextBox { Left = 10, Width = 375, Height = 34, BorderRadius = 6, PlaceholderText = "Désignation (ex: HP LaserJet 1020)" };
-            txtNumeroModeleConstructeur = new Guna2TextBox { Left = 10, Width = 375, Height = 34, BorderRadius = 6, PlaceholderText = "N° modèle constructeur (optionnel)" };
+            //txtNumeroModeleConstructeur = new Guna2TextBox { Left = 10, Width = 375, Height = 34, BorderRadius = 6, PlaceholderText = "N° modèle constructeur (optionnel)" };
 
             btnEnregistrerModele = new Guna2Button
             {
@@ -216,8 +215,8 @@ namespace InventoryApp
             {
                 cmbCategorie, btnToggleNouvelleCategorie, pnlNouvelleCategorie,
                 cmbMarque, btnToggleNouvelleMarque, pnlNouvelleMarque,
-                txtReferenceModele, txtDesignationModele, txtNumeroModeleConstructeur,
-                btnEnregistrerModele
+                txtReferenceModele, txtDesignationModele,btnEnregistrerModele //txtNumeroModeleConstructeur
+                
             });
 
             // Numéro de Série
@@ -297,7 +296,7 @@ namespace InventoryApp
             {
                 Text = EnModeEdition ? "Enregistrer les modifications" : "Enregistrer",
                 Height = 38,
-                FillColor = Color.FromArgb(16, 185, 129), // Vert Emerald
+                FillColor = Color.Green, // Vert Emerald
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
                 BorderRadius = 8,
@@ -309,7 +308,7 @@ namespace InventoryApp
                 Text = "Annuler",
                 Width = 100,
                 Height = 38,
-                FillColor = Color.FromArgb(239, 68, 68), // Rouge Corail
+                FillColor = Color.Red, // Rouge Corail
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
                 BorderRadius = 8,
@@ -364,7 +363,7 @@ namespace InventoryApp
 
                 txtReferenceModele.Top = yi; yi += 40;
                 txtDesignationModele.Top = yi; yi += 40;
-                txtNumeroModeleConstructeur.Top = yi; yi += 40;
+               // txtNumeroModeleConstructeur.Top = yi; yi += 40;
                 btnEnregistrerModele.Top = yi; yi += 44;
 
                 pnlNouveauModele.Height = yi + 8;
@@ -415,29 +414,32 @@ namespace InventoryApp
 
         private void ChargerCategories()
         {
-            var t = DatabaseHelper.ExecuteQuery("SELECT id, designation FROM Categorie ORDER BY designation");
+            var t = DatabaseHelper.ExecuteQuery("SELECT id, (code || ' - ' || designation) AS nom_affichage FROM Categorie ORDER BY designation");
             var ligneVide = t.NewRow();
             ligneVide["id"] = DBNull.Value;
-            ligneVide["designation"] = "-- Aucune --";
+            ligneVide["nom_affichage"] = "-- Aucune --";
             t.Rows.InsertAt(ligneVide, 0);
 
             cmbCategorie.DataSource = t;
-            cmbCategorie.DisplayMember = "designation";
+            cmbCategorie.DisplayMember = "nom_affichage";
             cmbCategorie.ValueMember = "id";
             cmbCategorie.SelectedIndex = 0;
         }
 
         private void ChargerMarques()
         {
-            var t = DatabaseHelper.ExecuteQuery("SELECT id, designation FROM Marque ORDER BY designation");
+            // On combine le code et la désignation pour l'affichage (ex: HP - Hewlett-Packard)
+            string sql = "SELECT id, (code || ' - ' || designation) AS nom_affichage FROM Marque ORDER BY designation";
+            var t = DatabaseHelper.ExecuteQuery(sql);
+
             var ligneVide = t.NewRow();
             ligneVide["id"] = DBNull.Value;
-            ligneVide["designation"] = "-- Aucune --";
+            ligneVide["nom_affichage"] = "-- Aucune --";
             t.Rows.InsertAt(ligneVide, 0);
 
             cmbMarque.DataSource = t;
-            cmbMarque.DisplayMember = "designation";
-            cmbMarque.ValueMember = "id";
+            cmbMarque.DisplayMember = "nom_affichage"; // Ce qui est affiché à l'écran
+            cmbMarque.ValueMember = "id";              // Ce qui est utilisé en arrière-plan (SelectedValue)
             cmbMarque.SelectedIndex = 0;
         }
 
@@ -559,17 +561,19 @@ namespace InventoryApp
             try
             {
                 string sql = @"
-                    INSERT INTO Modele (reference, designation, numero_modele, categorie_id, marque_id)
-                    VALUES (@ref, @desig, @numMod, @catId, @marqId);
-                    SELECT last_insert_rowid();";
+            INSERT INTO Modele (reference, designation, numero_modele, categorie_id, marque_id)
+            VALUES (@ref, @desig, @numMod, @catId, @marqId);
+            SELECT last_insert_rowid();";
+
                 using (var conn = DatabaseHelper.GetConnection())
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = sql;
                     cmd.Parameters.AddWithValue("@ref", txtReferenceModele.Text.Trim());
                     cmd.Parameters.AddWithValue("@desig", txtDesignationModele.Text.Trim());
-                    cmd.Parameters.AddWithValue("@numMod",
-                        string.IsNullOrWhiteSpace(txtNumeroModeleConstructeur.Text) ? (object)DBNull.Value : txtNumeroModeleConstructeur.Text.Trim());
+
+                    // On envoie toujours NULL pour le numéro de modèle constructeur
+                    cmd.Parameters.AddWithValue("@numMod", DBNull.Value);
 
                     object catValue = (cmbCategorie.SelectedValue == null || cmbCategorie.SelectedValue == DBNull.Value)
                         ? DBNull.Value : cmbCategorie.SelectedValue;
@@ -585,7 +589,6 @@ namespace InventoryApp
                     showNouveauModele = false;
                     txtReferenceModele.Clear();
                     txtDesignationModele.Clear();
-                    txtNumeroModeleConstructeur.Clear();
                     Relayout();
                 }
             }
@@ -594,7 +597,6 @@ namespace InventoryApp
                 MessageBox.Show("Cette référence de modèle existe déjà.", "Doublon", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
         private void BtnEnregistrer_Click(object? sender, EventArgs e)
         {
             if (cmbModele.SelectedValue == null)
