@@ -12,7 +12,7 @@ using Microsoft.Data.Sqlite;
 namespace InventoryApp
 {
     /// <summary>
-    /// Formulaire popup Guna.UI2 pour créer un Mouvement complet avec ses lignes.
+    /// Formulaire popup Guna.UI2 pour créer ou modifier un Mouvement complet avec ses lignes.
     /// Écriture atomique en base via transaction SQL à la validation.
     /// </summary>
     public class FrmAjouterMouvement : Form
@@ -25,6 +25,7 @@ namespace InventoryApp
         public bool MouvementEnregistre { get; private set; } = false;
 
         private readonly Form1? _mainForm;
+        private readonly long? _mouvementIdToEdit; // Stocke l'ID si on est en mode modification
         private readonly BindingList<LigneMouvementTemp> _lignes = new BindingList<LigneMouvementTemp>();
 
         private Guna2ComboBox cmbEmploye = null!;
@@ -40,19 +41,36 @@ namespace InventoryApp
         private Guna2Button btnAjouterLigne = null!;
         private Guna2Button btnEnregistrer = null!;
         private Guna2Button btnAnnuler = null!;
+        private Label lblTitre = null!;
 
-        public FrmAjouterMouvement(Form1? mainForm)
+        // 1. Constructeur pour la CRÉATION (1 argument)
+        public FrmAjouterMouvement(Form1? mainForm) : this(mainForm, null)
+        {
+        }
+
+        // 2. Constructeur pour la MODIFICATION (2 arguments)
+        public FrmAjouterMouvement(Form1? mainForm, long? mouvementId)
         {
             _mainForm = mainForm;
+            _mouvementIdToEdit = mouvementId;
 
-            Text = "Nouveau mouvement";
+            Text = _mouvementIdToEdit.HasValue ? "Modifier le mouvement" : "Nouveau mouvement";
             Size = new Size(820, 720);
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.None;
             BackColor = Color.White;
 
             ConstruireControles();
-            Load += (s, e) => { ChargerEmployes(); RafraichirGrille(); };
+
+            Load += (s, e) =>
+            {
+                ChargerEmployes();
+                if (_mouvementIdToEdit.HasValue)
+                {
+                    ChargerMouvementExistant(_mouvementIdToEdit.Value);
+                }
+                RafraichirGrille();
+            };
         }
 
         private void ConstruireControles()
@@ -65,9 +83,9 @@ namespace InventoryApp
                 BackColor = _darkNavy
             };
 
-            var lblTitre = new Label
+            lblTitre = new Label
             {
-                Text = "NOUVEAU MOUVEMENT DE STOCK",
+                Text = _mouvementIdToEdit.HasValue ? "MODIFIER LE MOUVEMENT DE STOCK" : "NOUVEAU MOUVEMENT DE STOCK",
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 Dock = DockStyle.Fill,
@@ -194,7 +212,6 @@ namespace InventoryApp
 
             y += 65;
 
-            // ---- Champ Contenu (Plein largeur avec valeur par défaut en arabe) ----
             MakeLabel("Contenu du document (Texte d'attestation)", margeG);
             txtContenu = new Guna2TextBox
             {
@@ -277,7 +294,7 @@ namespace InventoryApp
             // Boutons de validation
             btnEnregistrer = new Guna2Button
             {
-                Text = "Enregistrer le mouvement",
+                Text = _mouvementIdToEdit.HasValue ? "Mettre à jour" : "Enregistrer le mouvement",
                 Left = margeD + largeurChamp - 320,
                 Top = y,
                 Width = 210,
@@ -315,6 +332,53 @@ namespace InventoryApp
             cmbEmploye.DisplayMember = "affichage";
             cmbEmploye.ValueMember = "id";
             cmbEmploye.DataSource = t;
+        }
+        
+        private void ChargerMouvementExistant(long id)
+        {
+            var dtMvt = DatabaseHelper.ExecuteQuery(@"
+                SELECT nom, reference, type_mouvement, employe_id, date_mouvement, contenu, observation 
+                FROM Mouvement WHERE id = @id", new SqliteParameter("@id", id));
+
+            if (dtMvt.Rows.Count == 0) return;
+
+            var row = dtMvt.Rows[0];
+            if (row["nom"] != DBNull.Value) cmbNomMouvement.SelectedItem = row["nom"].ToString();
+            if (row["type_mouvement"] != DBNull.Value) cmbTypeMouvement.SelectedItem = row["type_mouvement"].ToString();
+            if (row["reference"] != DBNull.Value) txtReference.Text = row["reference"].ToString();
+            if (row["observation"] != DBNull.Value) txtObservationGenerale.Text = row["observation"].ToString();
+            if (row["contenu"] != DBNull.Value) txtContenu.Text = row["contenu"].ToString();
+            if (row["employe_id"] != DBNull.Value) cmbEmploye.SelectedValue = Convert.ToInt64(row["employe_id"]);
+            if (row["date_mouvement"] != DBNull.Value && DateTime.TryParse(row["date_mouvement"].ToString(), out DateTime dt))
+                dtpDateMouvement.Value = dt;
+
+            // Charger les lignes associées
+            var dtLignes = DatabaseHelper.ExecuteQuery(@"
+                SELECT 
+                    lm.equipement_id AS equipement_id, 
+                    m.designation AS designation, 
+                    e.numero_serie AS num_serie, 
+                    lm.etat_a_la_mouvement, 
+                    lm.est_sortie,
+                    lm.observation AS observation
+                FROM Ligne_mouvement lm
+                JOIN Equipement e ON lm.equipement_id = e.id
+                JOIN Modele m ON e.modele_id = m.id
+                WHERE lm.mouvement_id = @id", new SqliteParameter("@id", id));
+
+            _lignes.Clear();
+            foreach (DataRow r in dtLignes.Rows)
+            {
+                _lignes.Add(new LigneMouvementTemp
+                {
+                    // ✅ Utiliser le nom exact de la colonne sélectionnée dans le SELECT SQL
+                    EquipementId = Convert.ToInt32(r["equipement_id"]),
+                    Affichage = $"{r["designation"]} (S/N: {r["num_serie"]})",
+                    Etat = r["etat_a_la_mouvement"]?.ToString() ?? "Bon",
+                    EstSortie = Convert.ToInt32(r["est_sortie"]) == 1,
+                    Observation = r["observation"]?.ToString() ?? string.Empty
+                });
+            }
         }
 
         private void RafraichirGrille()
@@ -402,7 +466,6 @@ namespace InventoryApp
 
             string typeMouvement = cmbTypeMouvement.SelectedItem.ToString()!;
             string nomMouvement = cmbNomMouvement.SelectedItem.ToString()!;
-            string codeMouvement = $"MVT-{DateTime.Now:yyyyMMddHHmmssfff}";
 
             using (var conn = DatabaseHelper.GetConnection())
             {
@@ -412,41 +475,78 @@ namespace InventoryApp
                     {
                         long mouvementId;
 
-                        using (var cmd = conn.CreateCommand())
+                        if (_mouvementIdToEdit.HasValue)
                         {
-                            cmd.Transaction = tx;
-                            cmd.CommandText = @"
-                                INSERT INTO Mouvement (code_mouvement, nom, reference, type_mouvement, employe_id, date_mouvement, contenu, observation)
-                                VALUES (@code, @nom, @ref, @type, @emp, @date, @contenu, @obs);
-                                SELECT last_insert_rowid();";
-                            cmd.Parameters.AddWithValue("@code", codeMouvement);
-                            cmd.Parameters.AddWithValue("@nom", nomMouvement);
-                            cmd.Parameters.AddWithValue("@ref",
-                                string.IsNullOrWhiteSpace(txtReference.Text) ? (object)DBNull.Value : txtReference.Text.Trim());
-                            cmd.Parameters.AddWithValue("@type", typeMouvement);
-                            cmd.Parameters.AddWithValue("@emp",
-                                cmbEmploye.SelectedValue ?? (object)DBNull.Value);
-                            cmd.Parameters.AddWithValue("@date", dtpDateMouvement.Value.ToString("yyyy-MM-dd"));
-                            cmd.Parameters.AddWithValue("@contenu",
-                                string.IsNullOrWhiteSpace(txtContenu.Text) ? (object)DBNull.Value : txtContenu.Text.Trim());
-                            cmd.Parameters.AddWithValue("@obs",
-                                string.IsNullOrWhiteSpace(txtObservationGenerale.Text) ? (object)DBNull.Value : txtObservationGenerale.Text.Trim());
+                            mouvementId = _mouvementIdToEdit.Value;
 
-                            mouvementId = (long)cmd.ExecuteScalar()!;
+                            // 1. UPDATE du Mouvement
+                            using (var cmd = conn.CreateCommand())
+                            {
+                                cmd.Transaction = tx;
+                                cmd.CommandText = @"
+                                    UPDATE Mouvement 
+                                    SET nom = @nom, reference = @ref, type_mouvement = @type, 
+                                        employe_id = @emp, date_mouvement = @date, 
+                                        contenu = @contenu, observation = @obs
+                                    WHERE id = @id;";
+                                cmd.Parameters.AddWithValue("@id", mouvementId);
+                                cmd.Parameters.AddWithValue("@nom", nomMouvement);
+                                cmd.Parameters.AddWithValue("@ref", string.IsNullOrWhiteSpace(txtReference.Text) ? (object)DBNull.Value : txtReference.Text.Trim());
+                                cmd.Parameters.AddWithValue("@type", typeMouvement);
+                                cmd.Parameters.AddWithValue("@emp", cmbEmploye.SelectedValue ?? (object)DBNull.Value);
+                                cmd.Parameters.AddWithValue("@date", dtpDateMouvement.Value.ToString("yyyy-MM-dd"));
+                                cmd.Parameters.AddWithValue("@contenu", string.IsNullOrWhiteSpace(txtContenu.Text) ? (object)DBNull.Value : txtContenu.Text.Trim());
+                                cmd.Parameters.AddWithValue("@obs", string.IsNullOrWhiteSpace(txtObservationGenerale.Text) ? (object)DBNull.Value : txtObservationGenerale.Text.Trim());
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            // 2. Supprimer les anciennes lignes pour réinsérer les nouvelles
+                            using (var cmd = conn.CreateCommand())
+                            {
+                                cmd.Transaction = tx;
+                                cmd.CommandText = "DELETE FROM Ligne_mouvement WHERE mouvement_id = @mvt;";
+                                cmd.Parameters.AddWithValue("@mvt", mouvementId);
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+                        else
+                        {
+                            // INSERT du Mouvement
+                            string codeMouvement = $"MVT-{DateTime.Now:yyyyMMddHHmmssfff}";
+                            using (var cmd = conn.CreateCommand())
+                            {
+                                cmd.Transaction = tx;
+                                cmd.CommandText = @"
+                                    INSERT INTO Mouvement (code_mouvement, nom, reference, type_mouvement, employe_id, date_mouvement, contenu, observation)
+                                    VALUES (@code, @nom, @ref, @type, @emp, @date, @contenu, @obs);
+                                    SELECT last_insert_rowid();";
+                                cmd.Parameters.AddWithValue("@code", codeMouvement);
+                                cmd.Parameters.AddWithValue("@nom", nomMouvement);
+                                cmd.Parameters.AddWithValue("@ref", string.IsNullOrWhiteSpace(txtReference.Text) ? (object)DBNull.Value : txtReference.Text.Trim());
+                                cmd.Parameters.AddWithValue("@type", typeMouvement);
+                                cmd.Parameters.AddWithValue("@emp", cmbEmploye.SelectedValue ?? (object)DBNull.Value);
+                                cmd.Parameters.AddWithValue("@date", dtpDateMouvement.Value.ToString("yyyy-MM-dd"));
+                                cmd.Parameters.AddWithValue("@contenu", string.IsNullOrWhiteSpace(txtContenu.Text) ? (object)DBNull.Value : txtContenu.Text.Trim());
+                                cmd.Parameters.AddWithValue("@obs", string.IsNullOrWhiteSpace(txtObservationGenerale.Text) ? (object)DBNull.Value : txtObservationGenerale.Text.Trim());
+
+                                mouvementId = (long)cmd.ExecuteScalar()!;
+                            }
                         }
 
+                        // Réinsertion/Insertion des lignes + mise à jour des équipements
                         foreach (var ligne in _lignes)
                         {
                             using (var cmd = conn.CreateCommand())
                             {
                                 cmd.Transaction = tx;
                                 cmd.CommandText = @"
-                                    INSERT INTO Ligne_mouvement (mouvement_id, equipement_id, etat_a_la_mouvement, est_sortie)
-                                    VALUES (@mvt, @eq, @etat, @sortie);";
+                                    INSERT INTO Ligne_mouvement (mouvement_id, equipement_id, etat_a_la_mouvement, est_sortie, observation)
+                                    VALUES (@mvt, @eq, @etat, @sortie, @obs);";
                                 cmd.Parameters.AddWithValue("@mvt", mouvementId);
                                 cmd.Parameters.AddWithValue("@eq", ligne.EquipementId);
                                 cmd.Parameters.AddWithValue("@etat", ligne.Etat);
                                 cmd.Parameters.AddWithValue("@sortie", ligne.EstSortie ? 1 : 0);
+                                cmd.Parameters.AddWithValue("@obs", string.IsNullOrWhiteSpace(ligne.Observation) ? (object)DBNull.Value : ligne.Observation.Trim());
                                 cmd.ExecuteNonQuery();
                             }
 

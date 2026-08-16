@@ -49,6 +49,8 @@
             DataGridViewCellStyle dataGridViewCellStyle4 = new DataGridViewCellStyle();
             Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges17 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
             Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges18 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges11 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges12 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
             Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges13 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
             Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges14 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
             Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges15 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
@@ -85,8 +87,6 @@
             Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges38 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
             Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges39 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
             Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges40 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
-            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges11 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
-            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges12 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
             guna2Panel2 = new Guna.UI2.WinForms.Guna2Panel();
             flowLayoutPanel1 = new FlowLayoutPanel();
             guna2PictureBox1 = new Guna.UI2.WinForms.Guna2PictureBox();
@@ -96,13 +96,14 @@
             btnToRaportscontainer = new Guna.UI2.WinForms.Guna2Button();
             mom_container = new Guna.UI2.WinForms.Guna2Panel();
             repots_container = new Guna.UI2.WinForms.Guna2Panel();
-            guna2TabControl1 = new Guna.UI2.WinForms.Guna2TabControl();
-            tabPage1 = new TabPage();
-            guna2DataGridView1 = new Guna.UI2.WinForms.Guna2DataGridView();
+            MVM_InventaireTabControl = new Guna.UI2.WinForms.Guna2TabControl();
+            BonMVMtabPage1 = new TabPage();
+            tableMVMDataGridView = new Guna.UI2.WinForms.Guna2DataGridView();
             guna2Panel1 = new Guna.UI2.WinForms.Guna2Panel();
-            guna2ComboBox1 = new Guna.UI2.WinForms.Guna2ComboBox();
-            guna2TextBox1 = new Guna.UI2.WinForms.Guna2TextBox();
-            tabPage2 = new TabPage();
+            btnNouveauMouvement = new Guna.UI2.WinForms.Guna2Button();
+            listeDeFiltrageMVMComboBox = new Guna.UI2.WinForms.Guna2ComboBox();
+            filtreTableMVMTextBox = new Guna.UI2.WinForms.Guna2TextBox();
+            InventairestabPage2 = new TabPage();
             guna2DataGridView2 = new Guna.UI2.WinForms.Guna2DataGridView();
             guna2Panel3 = new Guna.UI2.WinForms.Guna2Panel();
             guna2ComboBox2 = new Guna.UI2.WinForms.Guna2ComboBox();
@@ -118,17 +119,16 @@
             listeDeFIltrage = new Guna.UI2.WinForms.Guna2ComboBox();
             btnAjNouvEquip = new Guna.UI2.WinForms.Guna2Button();
             TextBoxfiltrage = new Guna.UI2.WinForms.Guna2TextBox();
-            btnNouveauMouvement = new Guna.UI2.WinForms.Guna2Button();
             guna2Panel2.SuspendLayout();
             flowLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)guna2PictureBox1).BeginInit();
             mom_container.SuspendLayout();
             repots_container.SuspendLayout();
-            guna2TabControl1.SuspendLayout();
-            tabPage1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)guna2DataGridView1).BeginInit();
+            MVM_InventaireTabControl.SuspendLayout();
+            BonMVMtabPage1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)tableMVMDataGridView).BeginInit();
             guna2Panel1.SuspendLayout();
-            tabPage2.SuspendLayout();
+            InventairestabPage2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)guna2DataGridView2).BeginInit();
             guna2Panel3.SuspendLayout();
             stock_container.SuspendLayout();
@@ -165,7 +165,6 @@
             flowLayoutPanel1.Size = new Size(200, 513);
             flowLayoutPanel1.TabIndex = 0;
             flowLayoutPanel1.WrapContents = false;
-            flowLayoutPanel1.Paint += flowLayoutPanel1_Paint;
             // 
             // guna2PictureBox1
             // 
@@ -195,7 +194,6 @@
             guna2HtmlLabel1.TabIndex = 8;
             guna2HtmlLabel1.Text = "INVENTORY APP";
             guna2HtmlLabel1.TextAlignment = ContentAlignment.MiddleCenter;
-            guna2HtmlLabel1.Click += guna2HtmlLabel1_Click;
             // 
             // btnToAccueilcontainer
             // 
@@ -291,12 +289,11 @@
             mom_container.ShadowDecoration.CustomizableEdges = customizableEdges46;
             mom_container.Size = new Size(1090, 594);
             mom_container.TabIndex = 3;
-            mom_container.Paint += guna2Panel3_Paint;
             // 
             // repots_container
             // 
             repots_container.BackColor = SystemColors.WindowFrame;
-            repots_container.Controls.Add(guna2TabControl1);
+            repots_container.Controls.Add(MVM_InventaireTabControl);
             repots_container.CustomizableEdges = customizableEdges27;
             repots_container.Dock = DockStyle.Fill;
             repots_container.FillColor = Color.FromArgb(245, 246, 250);
@@ -306,62 +303,62 @@
             repots_container.Size = new Size(1090, 594);
             repots_container.TabIndex = 0;
             // 
-            // guna2TabControl1
+            // MVM_InventaireTabControl
             // 
-            guna2TabControl1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            guna2TabControl1.Controls.Add(tabPage1);
-            guna2TabControl1.Controls.Add(tabPage2);
-            guna2TabControl1.ItemSize = new Size(180, 40);
-            guna2TabControl1.Location = new Point(0, 0);
-            guna2TabControl1.Margin = new Padding(0);
-            guna2TabControl1.Name = "guna2TabControl1";
-            guna2TabControl1.Padding = new Point(0, 0);
-            guna2TabControl1.RightToLeft = RightToLeft.No;
-            guna2TabControl1.SelectedIndex = 0;
-            guna2TabControl1.Size = new Size(1090, 594);
-            guna2TabControl1.TabButtonHoverState.BorderColor = Color.Empty;
-            guna2TabControl1.TabButtonHoverState.FillColor = Color.FromArgb(40, 52, 70);
-            guna2TabControl1.TabButtonHoverState.Font = new Font("Segoe UI Semibold", 10F);
-            guna2TabControl1.TabButtonHoverState.ForeColor = Color.White;
-            guna2TabControl1.TabButtonHoverState.InnerColor = Color.FromArgb(40, 52, 70);
-            guna2TabControl1.TabButtonIdleState.BorderColor = Color.Empty;
-            guna2TabControl1.TabButtonIdleState.FillColor = Color.FromArgb(24, 30, 54);
-            guna2TabControl1.TabButtonIdleState.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            guna2TabControl1.TabButtonIdleState.ForeColor = Color.FromArgb(156, 160, 167);
-            guna2TabControl1.TabButtonIdleState.InnerColor = Color.FromArgb(33, 42, 57);
-            guna2TabControl1.TabButtonSelectedState.BorderColor = Color.Empty;
-            guna2TabControl1.TabButtonSelectedState.FillColor = Color.FromArgb(37, 99, 235);
-            guna2TabControl1.TabButtonSelectedState.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            guna2TabControl1.TabButtonSelectedState.ForeColor = Color.White;
-            guna2TabControl1.TabButtonSelectedState.InnerColor = Color.FromArgb(37, 99, 235);
-            guna2TabControl1.TabButtonSize = new Size(180, 40);
-            guna2TabControl1.TabIndex = 0;
-            guna2TabControl1.TabMenuBackColor = Color.FromArgb(24, 30, 54);
-            guna2TabControl1.TabMenuOrientation = Guna.UI2.WinForms.TabMenuOrientation.HorizontalTop;
+            MVM_InventaireTabControl.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            MVM_InventaireTabControl.Controls.Add(BonMVMtabPage1);
+            MVM_InventaireTabControl.Controls.Add(InventairestabPage2);
+            MVM_InventaireTabControl.ItemSize = new Size(180, 40);
+            MVM_InventaireTabControl.Location = new Point(0, 0);
+            MVM_InventaireTabControl.Margin = new Padding(0);
+            MVM_InventaireTabControl.Name = "MVM_InventaireTabControl";
+            MVM_InventaireTabControl.Padding = new Point(0, 0);
+            MVM_InventaireTabControl.RightToLeft = RightToLeft.No;
+            MVM_InventaireTabControl.SelectedIndex = 0;
+            MVM_InventaireTabControl.Size = new Size(1090, 594);
+            MVM_InventaireTabControl.TabButtonHoverState.BorderColor = Color.Empty;
+            MVM_InventaireTabControl.TabButtonHoverState.FillColor = Color.FromArgb(40, 52, 70);
+            MVM_InventaireTabControl.TabButtonHoverState.Font = new Font("Segoe UI Semibold", 10F);
+            MVM_InventaireTabControl.TabButtonHoverState.ForeColor = Color.White;
+            MVM_InventaireTabControl.TabButtonHoverState.InnerColor = Color.FromArgb(40, 52, 70);
+            MVM_InventaireTabControl.TabButtonIdleState.BorderColor = Color.Empty;
+            MVM_InventaireTabControl.TabButtonIdleState.FillColor = Color.FromArgb(24, 30, 54);
+            MVM_InventaireTabControl.TabButtonIdleState.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            MVM_InventaireTabControl.TabButtonIdleState.ForeColor = Color.FromArgb(156, 160, 167);
+            MVM_InventaireTabControl.TabButtonIdleState.InnerColor = Color.FromArgb(33, 42, 57);
+            MVM_InventaireTabControl.TabButtonSelectedState.BorderColor = Color.Empty;
+            MVM_InventaireTabControl.TabButtonSelectedState.FillColor = Color.FromArgb(37, 99, 235);
+            MVM_InventaireTabControl.TabButtonSelectedState.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            MVM_InventaireTabControl.TabButtonSelectedState.ForeColor = Color.White;
+            MVM_InventaireTabControl.TabButtonSelectedState.InnerColor = Color.FromArgb(37, 99, 235);
+            MVM_InventaireTabControl.TabButtonSize = new Size(180, 40);
+            MVM_InventaireTabControl.TabIndex = 0;
+            MVM_InventaireTabControl.TabMenuBackColor = Color.FromArgb(24, 30, 54);
+            MVM_InventaireTabControl.TabMenuOrientation = Guna.UI2.WinForms.TabMenuOrientation.HorizontalTop;
             // 
-            // tabPage1
+            // BonMVMtabPage1
             // 
-            tabPage1.AutoScroll = true;
-            tabPage1.BackColor = Color.FromArgb(37, 99, 235);
-            tabPage1.Controls.Add(guna2DataGridView1);
-            tabPage1.Controls.Add(guna2Panel1);
-            tabPage1.Location = new Point(4, 44);
-            tabPage1.Margin = new Padding(0);
-            tabPage1.Name = "tabPage1";
-            tabPage1.Size = new Size(1082, 546);
-            tabPage1.TabIndex = 0;
-            tabPage1.Text = "Bons";
+            BonMVMtabPage1.AutoScroll = true;
+            BonMVMtabPage1.BackColor = Color.FromArgb(37, 99, 235);
+            BonMVMtabPage1.Controls.Add(tableMVMDataGridView);
+            BonMVMtabPage1.Controls.Add(guna2Panel1);
+            BonMVMtabPage1.Location = new Point(4, 44);
+            BonMVMtabPage1.Margin = new Padding(0);
+            BonMVMtabPage1.Name = "BonMVMtabPage1";
+            BonMVMtabPage1.Size = new Size(1082, 546);
+            BonMVMtabPage1.TabIndex = 0;
+            BonMVMtabPage1.Text = "Bons";
             // 
-            // guna2DataGridView1
+            // tableMVMDataGridView
             // 
-            guna2DataGridView1.AllowUserToAddRows = false;
-            guna2DataGridView1.AllowUserToOrderColumns = true;
+            tableMVMDataGridView.AllowUserToAddRows = false;
+            tableMVMDataGridView.AllowUserToOrderColumns = true;
             dataGridViewCellStyle1.BackColor = Color.White;
             dataGridViewCellStyle1.ForeColor = Color.Black;
             dataGridViewCellStyle1.SelectionBackColor = Color.FromArgb(239, 246, 255);
             dataGridViewCellStyle1.SelectionForeColor = Color.Black;
-            guna2DataGridView1.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle1;
-            guna2DataGridView1.CellBorderStyle = DataGridViewCellBorderStyle.None;
+            tableMVMDataGridView.AlternatingRowsDefaultCellStyle = dataGridViewCellStyle1;
+            tableMVMDataGridView.CellBorderStyle = DataGridViewCellBorderStyle.None;
             dataGridViewCellStyle2.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle2.BackColor = Color.White;
             dataGridViewCellStyle2.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
@@ -369,9 +366,9 @@
             dataGridViewCellStyle2.SelectionBackColor = Color.White;
             dataGridViewCellStyle2.SelectionForeColor = Color.FromArgb(37, 99, 235);
             dataGridViewCellStyle2.WrapMode = DataGridViewTriState.True;
-            guna2DataGridView1.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
-            guna2DataGridView1.ColumnHeadersHeight = 40;
-            guna2DataGridView1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.EnableResizing;
+            tableMVMDataGridView.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle2;
+            tableMVMDataGridView.ColumnHeadersHeight = 40;
+            tableMVMDataGridView.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.EnableResizing;
             dataGridViewCellStyle3.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle3.BackColor = Color.White;
             dataGridViewCellStyle3.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
@@ -379,11 +376,11 @@
             dataGridViewCellStyle3.SelectionBackColor = Color.FromArgb(239, 246, 255);
             dataGridViewCellStyle3.SelectionForeColor = Color.Black;
             dataGridViewCellStyle3.WrapMode = DataGridViewTriState.False;
-            guna2DataGridView1.DefaultCellStyle = dataGridViewCellStyle3;
-            guna2DataGridView1.Dock = DockStyle.Fill;
-            guna2DataGridView1.GridColor = Color.White;
-            guna2DataGridView1.Location = new Point(0, 46);
-            guna2DataGridView1.Name = "guna2DataGridView1";
+            tableMVMDataGridView.DefaultCellStyle = dataGridViewCellStyle3;
+            tableMVMDataGridView.Dock = DockStyle.Fill;
+            tableMVMDataGridView.GridColor = Color.White;
+            tableMVMDataGridView.Location = new Point(0, 46);
+            tableMVMDataGridView.Name = "tableMVMDataGridView";
             dataGridViewCellStyle4.Alignment = DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle4.BackColor = SystemColors.ControlLightLight;
             dataGridViewCellStyle4.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
@@ -391,34 +388,34 @@
             dataGridViewCellStyle4.SelectionBackColor = Color.MidnightBlue;
             dataGridViewCellStyle4.SelectionForeColor = Color.White;
             dataGridViewCellStyle4.WrapMode = DataGridViewTriState.True;
-            guna2DataGridView1.RowHeadersDefaultCellStyle = dataGridViewCellStyle4;
-            guna2DataGridView1.RowHeadersVisible = false;
-            guna2DataGridView1.RowTemplate.Height = 35;
-            guna2DataGridView1.Size = new Size(1082, 500);
-            guna2DataGridView1.TabIndex = 2;
-            guna2DataGridView1.ThemeStyle.AlternatingRowsStyle.BackColor = Color.White;
-            guna2DataGridView1.ThemeStyle.AlternatingRowsStyle.ForeColor = Color.Black;
-            guna2DataGridView1.ThemeStyle.AlternatingRowsStyle.SelectionBackColor = Color.FromArgb(239, 246, 255);
-            guna2DataGridView1.ThemeStyle.AlternatingRowsStyle.SelectionForeColor = Color.Black;
-            guna2DataGridView1.ThemeStyle.GridColor = Color.White;
-            guna2DataGridView1.ThemeStyle.HeaderStyle.BackColor = Color.White;
-            guna2DataGridView1.ThemeStyle.HeaderStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            guna2DataGridView1.ThemeStyle.HeaderStyle.ForeColor = Color.FromArgb(37, 99, 235);
-            guna2DataGridView1.ThemeStyle.HeaderStyle.Height = 40;
-            guna2DataGridView1.ThemeStyle.RowsStyle.BorderStyle = DataGridViewCellBorderStyle.None;
-            guna2DataGridView1.ThemeStyle.RowsStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            guna2DataGridView1.ThemeStyle.RowsStyle.ForeColor = Color.Black;
-            guna2DataGridView1.ThemeStyle.RowsStyle.Height = 35;
-            guna2DataGridView1.ThemeStyle.RowsStyle.SelectionBackColor = Color.FromArgb(239, 246, 255);
-            guna2DataGridView1.ThemeStyle.RowsStyle.SelectionForeColor = Color.Black;
+            tableMVMDataGridView.RowHeadersDefaultCellStyle = dataGridViewCellStyle4;
+            tableMVMDataGridView.RowHeadersVisible = false;
+            tableMVMDataGridView.RowTemplate.Height = 35;
+            tableMVMDataGridView.Size = new Size(1082, 500);
+            tableMVMDataGridView.TabIndex = 2;
+            tableMVMDataGridView.ThemeStyle.AlternatingRowsStyle.BackColor = Color.White;
+            tableMVMDataGridView.ThemeStyle.AlternatingRowsStyle.ForeColor = Color.Black;
+            tableMVMDataGridView.ThemeStyle.AlternatingRowsStyle.SelectionBackColor = Color.FromArgb(239, 246, 255);
+            tableMVMDataGridView.ThemeStyle.AlternatingRowsStyle.SelectionForeColor = Color.Black;
+            tableMVMDataGridView.ThemeStyle.GridColor = Color.White;
+            tableMVMDataGridView.ThemeStyle.HeaderStyle.BackColor = Color.White;
+            tableMVMDataGridView.ThemeStyle.HeaderStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            tableMVMDataGridView.ThemeStyle.HeaderStyle.ForeColor = Color.FromArgb(37, 99, 235);
+            tableMVMDataGridView.ThemeStyle.HeaderStyle.Height = 40;
+            tableMVMDataGridView.ThemeStyle.RowsStyle.BorderStyle = DataGridViewCellBorderStyle.None;
+            tableMVMDataGridView.ThemeStyle.RowsStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            tableMVMDataGridView.ThemeStyle.RowsStyle.ForeColor = Color.Black;
+            tableMVMDataGridView.ThemeStyle.RowsStyle.Height = 35;
+            tableMVMDataGridView.ThemeStyle.RowsStyle.SelectionBackColor = Color.FromArgb(239, 246, 255);
+            tableMVMDataGridView.ThemeStyle.RowsStyle.SelectionForeColor = Color.Black;
             // 
             // guna2Panel1
             // 
             guna2Panel1.AutoSizeMode = AutoSizeMode.GrowAndShrink;
             guna2Panel1.BackColor = Color.FromArgb(37, 99, 235);
             guna2Panel1.Controls.Add(btnNouveauMouvement);
-            guna2Panel1.Controls.Add(guna2ComboBox1);
-            guna2Panel1.Controls.Add(guna2TextBox1);
+            guna2Panel1.Controls.Add(listeDeFiltrageMVMComboBox);
+            guna2Panel1.Controls.Add(filtreTableMVMTextBox);
             guna2Panel1.CustomizableEdges = customizableEdges17;
             guna2Panel1.Dock = DockStyle.Top;
             guna2Panel1.Location = new Point(0, 0);
@@ -427,60 +424,79 @@
             guna2Panel1.Size = new Size(1082, 46);
             guna2Panel1.TabIndex = 1;
             // 
-            // guna2ComboBox1
+            // btnNouveauMouvement
             // 
-            guna2ComboBox1.BackColor = Color.Transparent;
-            guna2ComboBox1.BorderColor = Color.FromArgb(37, 99, 235);
-            guna2ComboBox1.CustomizableEdges = customizableEdges13;
-            guna2ComboBox1.DrawMode = DrawMode.OwnerDrawFixed;
-            guna2ComboBox1.DropDownStyle = ComboBoxStyle.DropDownList;
-            guna2ComboBox1.FocusedColor = Color.FromArgb(94, 148, 255);
-            guna2ComboBox1.FocusedState.BorderColor = Color.FromArgb(94, 148, 255);
-            guna2ComboBox1.Font = new Font("Segoe UI", 9F);
-            guna2ComboBox1.ForeColor = Color.FromArgb(24, 30, 54);
-            guna2ComboBox1.IntegralHeight = false;
-            guna2ComboBox1.ItemHeight = 30;
-            guna2ComboBox1.Location = new Point(352, 6);
-            guna2ComboBox1.Name = "guna2ComboBox1";
-            guna2ComboBox1.ShadowDecoration.CustomizableEdges = customizableEdges14;
-            guna2ComboBox1.Size = new Size(151, 36);
-            guna2ComboBox1.TabIndex = 2;
+            btnNouveauMouvement.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            btnNouveauMouvement.CustomizableEdges = customizableEdges11;
+            btnNouveauMouvement.DisabledState.BorderColor = Color.DarkGray;
+            btnNouveauMouvement.DisabledState.CustomBorderColor = Color.DarkGray;
+            btnNouveauMouvement.DisabledState.FillColor = Color.FromArgb(169, 169, 169);
+            btnNouveauMouvement.DisabledState.ForeColor = Color.FromArgb(141, 141, 141);
+            btnNouveauMouvement.FillColor = Color.FromArgb(37, 99, 235);
+            btnNouveauMouvement.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            btnNouveauMouvement.ForeColor = Color.White;
+            btnNouveauMouvement.Location = new Point(793, 6);
+            btnNouveauMouvement.Name = "btnNouveauMouvement";
+            btnNouveauMouvement.ShadowDecoration.CustomizableEdges = customizableEdges12;
+            btnNouveauMouvement.Size = new Size(286, 36);
+            btnNouveauMouvement.TabIndex = 3;
+            btnNouveauMouvement.Text = "+ Ajouter un Bon de Mouvement";
+            btnNouveauMouvement.Click += btnNouveauMouvement_Click;
             // 
-            // guna2TextBox1
+            // listeDeFiltrageMVMComboBox
             // 
-            guna2TextBox1.BorderColor = Color.FromArgb(37, 99, 235);
-            guna2TextBox1.CustomizableEdges = customizableEdges15;
-            guna2TextBox1.DefaultText = "";
-            guna2TextBox1.DisabledState.BorderColor = Color.FromArgb(208, 208, 208);
-            guna2TextBox1.DisabledState.FillColor = Color.FromArgb(226, 226, 226);
-            guna2TextBox1.DisabledState.ForeColor = Color.FromArgb(138, 138, 138);
-            guna2TextBox1.DisabledState.PlaceholderForeColor = Color.FromArgb(138, 138, 138);
-            guna2TextBox1.FocusedState.BorderColor = Color.FromArgb(94, 148, 255);
-            guna2TextBox1.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            guna2TextBox1.ForeColor = Color.FromArgb(24, 30, 54);
-            guna2TextBox1.HoverState.BorderColor = Color.FromArgb(94, 148, 255);
-            guna2TextBox1.IconRight = (Image)resources.GetObject("guna2TextBox1.IconRight");
-            guna2TextBox1.IconRightSize = new Size(30, 30);
-            guna2TextBox1.Location = new Point(0, 6);
-            guna2TextBox1.Name = "guna2TextBox1";
-            guna2TextBox1.PlaceholderText = "Rechercher un bon . . . . .";
-            guna2TextBox1.SelectedText = "";
-            guna2TextBox1.ShadowDecoration.CustomizableEdges = customizableEdges16;
-            guna2TextBox1.Size = new Size(346, 36);
-            guna2TextBox1.TabIndex = 0;
+            listeDeFiltrageMVMComboBox.BackColor = Color.Transparent;
+            listeDeFiltrageMVMComboBox.BorderColor = Color.FromArgb(37, 99, 235);
+            listeDeFiltrageMVMComboBox.CustomizableEdges = customizableEdges13;
+            listeDeFiltrageMVMComboBox.DrawMode = DrawMode.OwnerDrawFixed;
+            listeDeFiltrageMVMComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+            listeDeFiltrageMVMComboBox.FocusedColor = Color.FromArgb(94, 148, 255);
+            listeDeFiltrageMVMComboBox.FocusedState.BorderColor = Color.FromArgb(94, 148, 255);
+            listeDeFiltrageMVMComboBox.Font = new Font("Segoe UI", 9F);
+            listeDeFiltrageMVMComboBox.ForeColor = Color.FromArgb(24, 30, 54);
+            listeDeFiltrageMVMComboBox.IntegralHeight = false;
+            listeDeFiltrageMVMComboBox.ItemHeight = 30;
+            listeDeFiltrageMVMComboBox.Location = new Point(352, 6);
+            listeDeFiltrageMVMComboBox.Name = "listeDeFiltrageMVMComboBox";
+            listeDeFiltrageMVMComboBox.ShadowDecoration.CustomizableEdges = customizableEdges14;
+            listeDeFiltrageMVMComboBox.Size = new Size(151, 36);
+            listeDeFiltrageMVMComboBox.TabIndex = 2;
             // 
-            // tabPage2
+            // filtreTableMVMTextBox
             // 
-            tabPage2.AutoScroll = true;
-            tabPage2.BackColor = Color.FromArgb(37, 99, 235);
-            tabPage2.Controls.Add(guna2DataGridView2);
-            tabPage2.Controls.Add(guna2Panel3);
-            tabPage2.Location = new Point(4, 44);
-            tabPage2.Margin = new Padding(0);
-            tabPage2.Name = "tabPage2";
-            tabPage2.Size = new Size(1082, 546);
-            tabPage2.TabIndex = 1;
-            tabPage2.Text = "Inventaires";
+            filtreTableMVMTextBox.BorderColor = Color.FromArgb(37, 99, 235);
+            filtreTableMVMTextBox.CustomizableEdges = customizableEdges15;
+            filtreTableMVMTextBox.DefaultText = "";
+            filtreTableMVMTextBox.DisabledState.BorderColor = Color.FromArgb(208, 208, 208);
+            filtreTableMVMTextBox.DisabledState.FillColor = Color.FromArgb(226, 226, 226);
+            filtreTableMVMTextBox.DisabledState.ForeColor = Color.FromArgb(138, 138, 138);
+            filtreTableMVMTextBox.DisabledState.PlaceholderForeColor = Color.FromArgb(138, 138, 138);
+            filtreTableMVMTextBox.FocusedState.BorderColor = Color.FromArgb(94, 148, 255);
+            filtreTableMVMTextBox.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            filtreTableMVMTextBox.ForeColor = Color.FromArgb(24, 30, 54);
+            filtreTableMVMTextBox.HoverState.BorderColor = Color.FromArgb(94, 148, 255);
+            filtreTableMVMTextBox.IconRight = (Image)resources.GetObject("filtreTableMVMTextBox.IconRight");
+            filtreTableMVMTextBox.IconRightSize = new Size(30, 30);
+            filtreTableMVMTextBox.Location = new Point(0, 6);
+            filtreTableMVMTextBox.Name = "filtreTableMVMTextBox";
+            filtreTableMVMTextBox.PlaceholderText = "Rechercher un bon . . . . .";
+            filtreTableMVMTextBox.SelectedText = "";
+            filtreTableMVMTextBox.ShadowDecoration.CustomizableEdges = customizableEdges16;
+            filtreTableMVMTextBox.Size = new Size(346, 36);
+            filtreTableMVMTextBox.TabIndex = 0;
+            // 
+            // InventairestabPage2
+            // 
+            InventairestabPage2.AutoScroll = true;
+            InventairestabPage2.BackColor = Color.FromArgb(37, 99, 235);
+            InventairestabPage2.Controls.Add(guna2DataGridView2);
+            InventairestabPage2.Controls.Add(guna2Panel3);
+            InventairestabPage2.Location = new Point(4, 44);
+            InventairestabPage2.Margin = new Padding(0);
+            InventairestabPage2.Name = "InventairestabPage2";
+            InventairestabPage2.Size = new Size(1082, 546);
+            InventairestabPage2.TabIndex = 1;
+            InventairestabPage2.Text = "Inventaires";
             // 
             // guna2DataGridView2
             // 
@@ -578,7 +594,7 @@
             // 
             // guna2Button1
             // 
-            guna2Button1.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            this.guna2Button1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             guna2Button1.CustomizableEdges = customizableEdges21;
             guna2Button1.DisabledState.BorderColor = Color.DarkGray;
             guna2Button1.DisabledState.CustomBorderColor = Color.DarkGray;
@@ -587,7 +603,7 @@
             guna2Button1.FillColor = Color.FromArgb(37, 99, 235);
             guna2Button1.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
             guna2Button1.ForeColor = Color.White;
-            guna2Button1.Location = new Point(2671, 6);
+            this.guna2Button1.Location = new System.Drawing.Point(896, 6);
             guna2Button1.Name = "guna2Button1";
             guna2Button1.ShadowDecoration.CustomizableEdges = customizableEdges22;
             guna2Button1.Size = new Size(180, 36);
@@ -703,7 +719,6 @@
             table_equipements.ThemeStyle.RowsStyle.SelectionBackColor = Color.FromArgb(239, 246, 255);
             table_equipements.ThemeStyle.RowsStyle.SelectionForeColor = Color.Black;
             table_equipements.CellContentClick += table_equipements_CellContentClick;
-            table_equipements.CausesValidationChanged += table_equipements_CausesValidationChanged;
             table_equipements.Paint += table_equipements_Paint;
             // 
             // stockHeaderPanel
@@ -723,7 +738,6 @@
             stockHeaderPanel.ShadowDecoration.CustomizableEdges = customizableEdges42;
             stockHeaderPanel.Size = new Size(1090, 46);
             stockHeaderPanel.TabIndex = 0;
-            stockHeaderPanel.Paint += guna2Panel3_Paint_1;
             // 
             // btnChoisirColonnes
             // 
@@ -838,25 +852,6 @@
             TextBoxfiltrage.TabIndex = 0;
             TextBoxfiltrage.TextChanged += TextBoxfiltrage_TextChanged;
             // 
-            // btnNouveauMouvement
-            // 
-            btnNouveauMouvement.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnNouveauMouvement.CustomizableEdges = customizableEdges11;
-            btnNouveauMouvement.DisabledState.BorderColor = Color.DarkGray;
-            btnNouveauMouvement.DisabledState.CustomBorderColor = Color.DarkGray;
-            btnNouveauMouvement.DisabledState.FillColor = Color.FromArgb(169, 169, 169);
-            btnNouveauMouvement.DisabledState.ForeColor = Color.FromArgb(141, 141, 141);
-            btnNouveauMouvement.FillColor = Color.FromArgb(37, 99, 235);
-            btnNouveauMouvement.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
-            btnNouveauMouvement.ForeColor = Color.White;
-            btnNouveauMouvement.Location = new Point(793, 6);
-            btnNouveauMouvement.Name = "btnNouveauMouvement";
-            btnNouveauMouvement.ShadowDecoration.CustomizableEdges = customizableEdges12;
-            btnNouveauMouvement.Size = new Size(286, 36);
-            btnNouveauMouvement.TabIndex = 3;
-            btnNouveauMouvement.Text = "+ Ajouter un Bon de Mouvement";
-            btnNouveauMouvement.Click += btnNouveauMouvement_Click;
-            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -874,11 +869,11 @@
             ((System.ComponentModel.ISupportInitialize)guna2PictureBox1).EndInit();
             mom_container.ResumeLayout(false);
             repots_container.ResumeLayout(false);
-            guna2TabControl1.ResumeLayout(false);
-            tabPage1.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)guna2DataGridView1).EndInit();
+            MVM_InventaireTabControl.ResumeLayout(false);
+            BonMVMtabPage1.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)tableMVMDataGridView).EndInit();
             guna2Panel1.ResumeLayout(false);
-            tabPage2.ResumeLayout(false);
+            InventairestabPage2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)guna2DataGridView2).EndInit();
             guna2Panel3.ResumeLayout(false);
             stock_container.ResumeLayout(false);
@@ -909,13 +904,13 @@
         private Guna.UI2.WinForms.Guna2Button btnImprimer;
         private Guna.UI2.WinForms.Guna2HtmlLabel lblCompteur;
         private Guna.UI2.WinForms.Guna2Button btnChoisirColonnes;
-        private Guna.UI2.WinForms.Guna2TabControl guna2TabControl1;
-        private TabPage tabPage1;
-        private TabPage tabPage2;
+        private Guna.UI2.WinForms.Guna2TabControl MVM_InventaireTabControl;
+        private TabPage BonMVMtabPage1;
+        private TabPage InventairestabPage2;
         private Guna.UI2.WinForms.Guna2Panel guna2Panel1;
-        private Guna.UI2.WinForms.Guna2ComboBox guna2ComboBox1;
-        private Guna.UI2.WinForms.Guna2TextBox guna2TextBox1;
-        private Guna.UI2.WinForms.Guna2DataGridView guna2DataGridView1;
+        private Guna.UI2.WinForms.Guna2ComboBox listeDeFiltrageMVMComboBox;
+        private Guna.UI2.WinForms.Guna2TextBox filtreTableMVMTextBox;
+        private Guna.UI2.WinForms.Guna2DataGridView tableMVMDataGridView;
         private Guna.UI2.WinForms.Guna2DataGridView guna2DataGridView2;
         private Guna.UI2.WinForms.Guna2Panel guna2Panel3;
         private Guna.UI2.WinForms.Guna2ComboBox guna2ComboBox2;
