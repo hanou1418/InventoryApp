@@ -577,5 +577,13 @@ namespace InventoryApp
             // Afficher le menu juste en dessous du bouton
             menu.Show(btnChoisirColonnes, new Point(0, btnChoisirColonnes.Height));
         }
+
+        private void btnNouveauMouvement_Click(object sender, EventArgs e)
+        {
+            using (var frm = new FrmAjouterMouvement(this))
+            {
+                frm.ShowDialog(this);
+            }
+        }
     }
 }
