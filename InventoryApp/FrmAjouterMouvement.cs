@@ -1,13 +1,14 @@
 ﻿#nullable enable
+using Guna.UI2.WinForms;
+using InventoryApp.Data;
+using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
-using Guna.UI2.WinForms;
-using InventoryApp.Data;
-using Microsoft.Data.Sqlite;
 
 namespace InventoryApp
 {
@@ -283,9 +284,17 @@ namespace InventoryApp
             dgvLignes.Columns.Add(new DataGridViewTextBoxColumn { Name = "colEtat", HeaderText = "État", DataPropertyName = "Etat", Width = 80 });
             dgvLignes.Columns.Add(new DataGridViewCheckBoxColumn { Name = "colSortie", HeaderText = "Sortie ?", DataPropertyName = "EstSortie", Width = 60 });
             dgvLignes.Columns.Add(new DataGridViewTextBoxColumn { Name = "colObs", HeaderText = "Observation", DataPropertyName = "Observation", Width = 140 });
-            dgvLignes.Columns.Add(new DataGridViewButtonColumn { Name = "colModifierLigne", HeaderText = "Modifier", Width = 70, FlatStyle = FlatStyle.Flat });
-            dgvLignes.Columns.Add(new DataGridViewButtonColumn { Name = "colSupprimerLigne", HeaderText = "Supprimer", Width = 75, FlatStyle = FlatStyle.Flat });
-            dgvLignes.CellContentClick += DgvLignes_CellContentClick;
+            dgvLignes.Columns.Add(new DataGridViewTextBoxColumn { Name = "colModifierLigne", HeaderText = "Modifier", Width = 70, ReadOnly = true });
+            dgvLignes.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSupprimerLigne", HeaderText = "Supprimer", Width = 75, ReadOnly = true });
+            // Événements pour le clic et le dessin personnalisé des boutons d'actions
+            dgvLignes.CellMouseClick += DgvLignes_CellMouseClick;
+            dgvLignes.CellPainting += DgvLignes_CellPainting;
+
+            // Rafraîchir la grille pour animer les boutons au survol
+            dgvLignes.MouseMove += (s, e) => dgvLignes.Invalidate();
+            dgvLignes.MouseDown += (s, e) => dgvLignes.Invalidate();
+            dgvLignes.MouseUp += (s, e) => dgvLignes.Invalidate();
+
             dgvLignes.DataSource = _lignes;
             Controls.Add(dgvLignes);
 
@@ -326,14 +335,108 @@ namespace InventoryApp
             Controls.Add(btnAnnuler);
         }
 
+        private void DgvLignes_CellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.Graphics == null) return;
+
+            Point mousePos = dgvLignes.PointToClient(Cursor.Position);
+            bool isHovered = e.CellBounds.Contains(mousePos);
+            bool isClicked = isHovered && (Control.MouseButtons == MouseButtons.Left);
+            int iconSize = 18;
+
+            string colName = dgvLignes.Columns[e.ColumnIndex].Name;
+
+            if (colName == "colModifierLigne")
+            {
+                DessinerBoutonAction(e, isHovered, isClicked,
+                    Color.FromArgb(240, 253, 244), Color.FromArgb(220, 252, 231), Color.FromArgb(187, 247, 208),
+                    Color.FromArgb(134, 239, 172), "pencil_icon.png", iconSize);
+            }
+            else if (colName == "colSupprimerLigne")
+            {
+                DessinerBoutonAction(e, isHovered, isClicked,
+                    Color.FromArgb(254, 242, 242), Color.FromArgb(254, 226, 226), Color.FromArgb(254, 202, 202),
+                    Color.FromArgb(252, 165, 165), "delet_icon.png", iconSize);
+            }
+        }
+
+        private void DessinerBoutonAction(DataGridViewCellPaintingEventArgs e, bool isHovered, bool isClicked,
+            Color bg, Color bgHover, Color bgClick, Color borderColor, string iconFilename, int iconSize)
+        {
+            if (e.Graphics == null) return;
+
+            // 1. Dessiner d'abord le fond standard de la cellule
+            e.PaintBackground(e.CellBounds, true);
+
+            // 2. Calculer la zone du rectangle
+            Color currentBg = isClicked ? bgClick : (isHovered ? bgHover : bg);
+            Rectangle btnRect = new Rectangle(e.CellBounds.Left + 4, e.CellBounds.Top + 4, e.CellBounds.Width - 8, e.CellBounds.Height - 8);
+
+            // 3. Dessiner le rectangle de fond et sa bordure
+            using (var brush = new SolidBrush(currentBg))
+                e.Graphics.FillRectangle(brush, btnRect);
+
+            using (var pen = new Pen(borderColor))
+                e.Graphics.DrawRectangle(pen, btnRect);
+
+            // 4. Charger et dessiner l'icône depuis le dossier image/ ou la racine
+            string path = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "image", iconFilename);
+            if (!System.IO.File.Exists(path)) path = System.IO.Path.Combine("image", iconFilename);
+            if (!System.IO.File.Exists(path)) path = System.IO.Path.Combine(Application.StartupPath, iconFilename);
+
+            if (System.IO.File.Exists(path))
+            {
+                using (Image img = Image.FromFile(path))
+                {
+                    int x = btnRect.Left + (btnRect.Width - iconSize) / 2;
+                    int y = btnRect.Top + (btnRect.Height - iconSize) / 2;
+                    e.Graphics.DrawImage(img, new Rectangle(x, y, iconSize, iconSize));
+                }
+            }
+
+            // 5. Annuler le rendu par défaut de WinForms
+            e.Handled = true;
+        }
+        private static GraphicsPath GetRoundedPath(Rectangle rect, int radius)
+    {
+        GraphicsPath path = new GraphicsPath();
+        int diameter = radius * 2;
+        path.AddArc(rect.X, rect.Y, diameter, diameter, 180, 90);
+        path.AddArc(rect.Right - diameter, rect.Y, diameter, diameter, 270, 90);
+        path.AddArc(rect.Right - diameter, rect.Bottom - diameter, diameter, diameter, 0, 90);
+        path.AddArc(rect.X, rect.Bottom - diameter, diameter, diameter, 90, 90);
+        path.CloseFigure();
+        return path;
+    }
+
         private void ChargerEmployes()
         {
-            var t = DatabaseHelper.ExecuteQuery("SELECT id, (nom || ' ' || prenom) AS affichage FROM Employe WHERE statut = 'Actif' ORDER BY nom");
+            DataTable dtSource = DatabaseHelper.ExecuteQuery(@"
+        SELECT id, (nom || ' ' || prenom) AS affichage 
+        FROM Employe 
+        WHERE statut = 'Actif' 
+        ORDER BY nom");
+
+            // Créer une structure propre avec les bons types C#
+            DataTable t = new DataTable();
+            t.Columns.Add("id", typeof(object)); // Accepte long et DBNull
+            t.Columns.Add("affichage", typeof(string)); // Force le type string
+
+            // Ajouter la ligne d'invite
+            t.Rows.Add(DBNull.Value, "-- choisir un employé --");
+
+            // Copier les données chargées
+            foreach (DataRow row in dtSource.Rows)
+            {
+                t.Rows.Add(row["id"], row["affichage"]?.ToString());
+            }
+
+            cmbEmploye.DataSource = null;
             cmbEmploye.DisplayMember = "affichage";
             cmbEmploye.ValueMember = "id";
             cmbEmploye.DataSource = t;
+            cmbEmploye.SelectedIndex = 0;
         }
-        
         private void ChargerMouvementExistant(long id)
         {
             var dtMvt = DatabaseHelper.ExecuteQuery(@"
@@ -348,7 +451,26 @@ namespace InventoryApp
             if (row["reference"] != DBNull.Value) txtReference.Text = row["reference"].ToString();
             if (row["observation"] != DBNull.Value) txtObservationGenerale.Text = row["observation"].ToString();
             if (row["contenu"] != DBNull.Value) txtContenu.Text = row["contenu"].ToString();
-            if (row["employe_id"] != DBNull.Value) cmbEmploye.SelectedValue = Convert.ToInt64(row["employe_id"]);
+            if (row["employe_id"] != DBNull.Value)
+            {
+                long empId = Convert.ToInt64(row["employe_id"]);
+
+                // Forcer la sélection en recherchant directement l'élément par sa valeur
+                cmbEmploye.SelectedValue = empId;
+
+                // Sécurité supplémentaire si Guna2ComboBox n'a pas mis à jour l'index
+                if (cmbEmploye.SelectedIndex == -1 || cmbEmploye.SelectedIndex == 0)
+                {
+                    foreach (DataRowView item in cmbEmploye.Items)
+                    {
+                        if (item["id"] != DBNull.Value && Convert.ToInt64(item["id"]) == empId)
+                        {
+                            cmbEmploye.SelectedItem = item;
+                            break;
+                        }
+                    }
+                }
+            }
             if (row["date_mouvement"] != DBNull.Value && DateTime.TryParse(row["date_mouvement"].ToString(), out DateTime dt))
                 dtpDateMouvement.Value = dt;
 
@@ -394,7 +516,7 @@ namespace InventoryApp
                 if (frm.ShowDialog(this) == DialogResult.OK && frm.EmployeIdResultat.HasValue)
                 {
                     ChargerEmployes();
-                    cmbEmploye.SelectedValue = frm.EmployeIdResultat.Value;
+                    cmbEmploye.SelectedValue = Convert.ToInt64(frm.EmployeIdResultat.Value);
                 }
             }
         }
@@ -411,7 +533,7 @@ namespace InventoryApp
             }
         }
 
-        private void DgvLignes_CellContentClick(object? sender, DataGridViewCellEventArgs e)
+        private void DgvLignes_CellMouseClick(object? sender, DataGridViewCellMouseEventArgs e)
         {
             if (e.RowIndex < 0 || e.RowIndex >= _lignes.Count) return;
             string colName = dgvLignes.Columns[e.ColumnIndex].Name;
@@ -461,6 +583,13 @@ namespace InventoryApp
             {
                 MessageBox.Show("Ajoutez au moins une ligne avant d'enregistrer.", "Aucune ligne",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (cmbEmploye.SelectedIndex <= 0 || cmbEmploye.SelectedValue == DBNull.Value || cmbEmploye.SelectedValue == null)
+            {
+                MessageBox.Show("Veuillez choisir un employé valide dans la liste.", "Employé obligatoire",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                cmbEmploye.Focus();
                 return;
             }
 

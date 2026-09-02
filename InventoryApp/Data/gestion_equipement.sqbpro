@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="gestion_equipement.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="0"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="9703"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><table title="Categorie" custom_title="0" dock_id="1" table="4,9:mainCategorie"/><dock_state state="000000ff00000000fd00000001000000020000000000000000fc0100000001fb000000160064006f0063006b00420072006f00770073006500310100000000ffffffff0000012100ffffff000000000000000000000004000000040000000800000008fc00000000"/><default_encoding codec=""/><browse_table_settings/></tab_browse><tab_sql><sql name="SQL 1*">-- ============================================================
+-- PATCH v5 : Authentification
+-- Login par défaut : admin / Mot de passe : admin123
+-- (à changer immédiatement via l'interface après installation)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS Utilisateur (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    login TEXT NOT NULL UNIQUE,
+    mot_de_passe_hash TEXT NOT NULL,   -- SHA-256 hexadécimal (32 octets = 64 caractères)
+    nom_affichage TEXT,
+    actif INTEGER NOT NULL DEFAULT 1 CHECK(actif IN (0,1))
+);
+
+-- Admin par défaut : login=admin, mdp=admin123
+-- Hash SHA-256 de &quot;admin123&quot;
+INSERT OR IGNORE INTO Utilisateur (login, mot_de_passe_hash, nom_affichage, actif)
+VALUES (
+    'admin',
+    '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9',
+    'Administrateur',
+    1
+);</sql><current_tab id="0"/></tab_sql></sqlb_project>

@@ -33,21 +33,31 @@ namespace InventoryApp.Data
         public static DataTable ExecuteQuery(string sql, params SqliteParameter[] parameters)
         {
             var table = new DataTable();
-            using (var conn = GetConnection())
-            using (var cmd = conn.CreateCommand())
+            try
             {
-                cmd.CommandText = sql;
-                if (parameters != null)
-                    cmd.Parameters.AddRange(parameters);
-
-                using (var reader = cmd.ExecuteReader())
+                using (var conn = GetConnection())
+                using (var cmd = conn.CreateCommand())
                 {
-                    table.Load(reader);
+                    cmd.CommandText = sql;
+                    if (parameters != null)
+                        cmd.Parameters.AddRange(parameters);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        table.Load(reader);
+                    }
                 }
+            }
+            catch (SqliteException ex)
+            {
+                // Affiche la requête exacte qui a échoué dans la fenêtre 'Sortie' (Output) de Visual Studio
+                System.Diagnostics.Debug.WriteLine("=== ERREUR SQLITE ===");
+                System.Diagnostics.Debug.WriteLine("Requête : " + sql);
+                System.Diagnostics.Debug.WriteLine("Message : " + ex.Message);
+                throw;
             }
             return table;
         }
-
         // Utilitaire generique : execute un INSERT/UPDATE/DELETE.
         // Retourne le nombre de lignes affectees.
         public static int ExecuteNonQuery(string sql, params SqliteParameter[] parameters)
