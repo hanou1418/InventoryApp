@@ -106,7 +106,7 @@ namespace InventoryApp
             var lblModele = new Label { Text = "Modèle *", Left = MARGE, Top = y, Width = 300, ForeColor = Color.DimGray };
             y += 23;
             cmbModele = new Guna2ComboBox { Left = MARGE, Top = y, Width = 275, Height = 36, BorderRadius = 6, Font = new Font("Segoe UI", 9.5F), DropDownStyle = ComboBoxStyle.DropDownList };
-            btnGererModeles = new Guna2Button { Left = MARGE + 285, Top = y, Width = 115, Height = 36, Text = "Gérer...", Font = new Font("Segoe UI", 9F, FontStyle.Bold), BorderRadius = 6, FillColor = Color.FromArgb(100, 116, 139), ForeColor = Color.White, Cursor = Cursors.Hand };
+            btnGererModeles = new Guna2Button { Left = MARGE + 285, Top = y, Width = 115, Height = 36, Text = "+ Ajouter", Font = new Font("Segoe UI", 9F, FontStyle.Bold), BorderRadius = 6, FillColor = Color.FromArgb(100, 116, 139), ForeColor = Color.White, Cursor = Cursors.Hand };
             btnGererModeles.Click += BtnGererModeles_Click;
             y += 48;
 
@@ -184,12 +184,19 @@ namespace InventoryApp
 
         private void BtnGererModeles_Click(object? sender, EventArgs e)
         {
-            using (var frm = new FrmGererModeles(_mainForm))
+            using (var frm = new FrmAjouterModele())
             {
-                frm.ShowDialog(this);
-                ChargerModeles();
-                if (frm.DernierModeleModifieId.HasValue)
-                    cmbModele.SelectedValue = frm.DernierModeleModifieId.Value;
+                if (frm.ShowDialog(this) == DialogResult.OK)
+                {
+                    // 1. Recharger la ComboBox avec les nouveaux modèles de la base de données
+                    ChargerModeles();
+
+                    // 2. Sélectionner automatiquement le modèle nouvellement créé
+                    if (frm.ModeleIdResultat.HasValue)
+                    {
+                        cmbModele.SelectedValue = frm.ModeleIdResultat.Value;
+                    }
+                }
             }
         }
 

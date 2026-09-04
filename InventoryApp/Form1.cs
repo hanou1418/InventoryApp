@@ -16,6 +16,13 @@ namespace InventoryApp
 {
     public partial class Form1 : Form
     {
+
+        //les formulaires embarqués pour les onglets de tabpages
+        private FrmGererModeles _frmModeleEmbed;
+        private FrmGererCategories _frmCategorieEmbed;
+        private FrmGererMarques _frmMarqueEmbed;
+
+
         // Colonnes filtrables centralisées
         private static readonly (string Affichage, string Colonne)[] ColonnesFiltrablesEquipement = new[]
         {
@@ -92,6 +99,9 @@ namespace InventoryApp
 
             AfficherInfoUtilisateur();
             AfficherConteneur(home_container);
+
+
+            stock_containers.SelectedIndexChanged += stock_containers_SelectedIndexChanged;
         }
 
         // =====================================================
@@ -490,6 +500,10 @@ namespace InventoryApp
         {
             AfficherConteneur(stock_container);
             ChargerEquipements();
+            if (stock_containers.SelectedTab == Modèlles)
+            {
+                ChargerFormulaireModeleDansTab();
+            }
         }
 
         private void btnToRaportscontaine_Click(object sender, EventArgs e)
@@ -1292,7 +1306,96 @@ namespace InventoryApp
 
         #endregion
 
+        
+        private void ChargerFormulaireModeleDansTab()
+        {
+            // 1. Si le formulaire n'existe pas ou a été détruit, on l'instancie
+            if (_frmModeleEmbed == null || _frmModeleEmbed.IsDisposed)
+            {
+                Modèlles.Controls.Clear();
 
+                _frmModeleEmbed = new FrmGererModeles(this)
+                {
+                    TopLevel = false,
+                    FormBorderStyle = FormBorderStyle.None,
+                    Dock = DockStyle.Fill
+                };
 
+                Modèlles.Controls.Add(_frmModeleEmbed);
+                _frmModeleEmbed.Show();
+            }
+            else
+            {
+                // 2. Si le formulaire existe déjà, on rafraîchit la liste
+                _frmModeleEmbed.ChargerListe();
+            }
+        }
+
+        //******************************************************************
+        //********** Afficher la gestion des catigories dans le TabPage *******
+        //******************************************************************
+        private void ChargerFormulaireCategorieDansTab()
+        {
+            if (_frmCategorieEmbed == null || _frmCategorieEmbed.IsDisposed)
+            {
+                Categories.Controls.Clear();
+
+                _frmCategorieEmbed = new FrmGererCategories(this)
+                {
+                    TopLevel = false,
+                    FormBorderStyle = FormBorderStyle.None,
+                    Dock = DockStyle.Fill
+                };
+
+                Categories.Controls.Add(_frmCategorieEmbed);
+                _frmCategorieEmbed.Show();
+            }
+            else
+            {
+                _frmCategorieEmbed.ChargerListe();
+            }
+        }
+
+        //******************************************************************
+        //********** Afficher la gestion des marques dans le TabPage *******
+        //******************************************************************
+        private void ChargerFormulaireMarqueDansTab()
+        {
+            if (_frmMarqueEmbed == null || _frmMarqueEmbed.IsDisposed)
+            {
+                Marques.Controls.Clear(); // Remplacez "Marques" par le nom exact de votre TabPage dans le Designer
+
+                _frmMarqueEmbed = new FrmGererMarques(this)
+                {
+                    TopLevel = false,
+                    FormBorderStyle = FormBorderStyle.None,
+                    Dock = DockStyle.Fill
+                };
+
+                Marques.Controls.Add(_frmMarqueEmbed);
+                _frmMarqueEmbed.Show();
+            }
+            else
+            {
+                _frmMarqueEmbed.ChargerListe();
+            }
+        }
+
+        // 3. Événement mis à jour pour gérer la navigation entre tous les onglets
+        private void stock_containers_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (stock_containers.SelectedTab == Modèlles)
+            {
+                ChargerFormulaireModeleDansTab();
+            }
+            else if (stock_containers.SelectedTab == Categories)
+            {
+                ChargerFormulaireCategorieDansTab();
+            }
+            else if (stock_containers.SelectedTab == Marques)
+            {
+                ChargerFormulaireMarqueDansTab();
+            }
+        }
     }
 }

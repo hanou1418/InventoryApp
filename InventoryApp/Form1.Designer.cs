@@ -116,7 +116,7 @@
             mom_container = new Guna.UI2.WinForms.Guna2Panel();
             stock_container = new Guna.UI2.WinForms.Guna2Panel();
             stock_containers = new Guna.UI2.WinForms.Guna2TabControl();
-            tabPage1 = new TabPage();
+            Articles = new TabPage();
             stockHeaderPanel = new Guna.UI2.WinForms.Guna2Panel();
             btnImprimer = new Guna.UI2.WinForms.Guna2Button();
             btnChoisirColonnes = new Guna.UI2.WinForms.Guna2Button();
@@ -125,7 +125,9 @@
             listeDeFIltrage = new Guna.UI2.WinForms.Guna2ComboBox();
             TextBoxfiltrage = new Guna.UI2.WinForms.Guna2TextBox();
             table_equipements = new Guna.UI2.WinForms.Guna2DataGridView();
-            tabPage2 = new TabPage();
+            Modèlles = new TabPage();
+            Categories = new TabPage();
+            Marques = new TabPage();
             home_container = new Guna.UI2.WinForms.Guna2Panel();
             repots_container = new Guna.UI2.WinForms.Guna2Panel();
             MVM_InventaireTabControl = new Guna.UI2.WinForms.Guna2TabControl();
@@ -149,7 +151,7 @@
             mom_container.SuspendLayout();
             stock_container.SuspendLayout();
             stock_containers.SuspendLayout();
-            tabPage1.SuspendLayout();
+            Articles.SuspendLayout();
             stockHeaderPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)table_equipements).BeginInit();
             repots_container.SuspendLayout();
@@ -466,8 +468,10 @@
             // 
             // stock_containers
             // 
-            stock_containers.Controls.Add(tabPage1);
-            stock_containers.Controls.Add(tabPage2);
+            stock_containers.Controls.Add(Articles);
+            stock_containers.Controls.Add(Modèlles);
+            stock_containers.Controls.Add(Categories);
+            stock_containers.Controls.Add(Marques);
             stock_containers.Dock = DockStyle.Fill;
             stock_containers.ItemSize = new Size(180, 40);
             stock_containers.Location = new Point(0, 0);
@@ -486,25 +490,25 @@
             stock_containers.TabButtonIdleState.InnerColor = Color.FromArgb(33, 42, 57);
             stock_containers.TabButtonSelectedState.BorderColor = Color.Empty;
             stock_containers.TabButtonSelectedState.FillColor = Color.FromArgb(29, 37, 49);
-            stock_containers.TabButtonSelectedState.Font = new Font("Segoe UI Semibold", 10F);
+            stock_containers.TabButtonSelectedState.Font = new Font("Segoe UI", 11.25F, FontStyle.Bold);
             stock_containers.TabButtonSelectedState.ForeColor = Color.White;
-            stock_containers.TabButtonSelectedState.InnerColor = Color.FromArgb(76, 132, 255);
+            stock_containers.TabButtonSelectedState.InnerColor = Color.FromArgb(37, 99, 235);
             stock_containers.TabButtonSize = new Size(180, 40);
             stock_containers.TabIndex = 6;
             stock_containers.TabMenuBackColor = Color.FromArgb(33, 42, 57);
             stock_containers.TabMenuOrientation = Guna.UI2.WinForms.TabMenuOrientation.HorizontalTop;
             // 
-            // tabPage1
+            // Articles
             // 
-            tabPage1.Controls.Add(stockHeaderPanel);
-            tabPage1.Controls.Add(table_equipements);
-            tabPage1.Location = new Point(4, 44);
-            tabPage1.Name = "tabPage1";
-            tabPage1.Padding = new Padding(3);
-            tabPage1.Size = new Size(1082, 546);
-            tabPage1.TabIndex = 0;
-            tabPage1.Text = "tabPage1";
-            tabPage1.UseVisualStyleBackColor = true;
+            Articles.Controls.Add(stockHeaderPanel);
+            Articles.Controls.Add(table_equipements);
+            Articles.Location = new Point(4, 44);
+            Articles.Name = "Articles";
+            Articles.Padding = new Padding(3);
+            Articles.Size = new Size(1082, 546);
+            Articles.TabIndex = 0;
+            Articles.Text = "Articles";
+            Articles.UseVisualStyleBackColor = true;
             // 
             // stockHeaderPanel
             // 
@@ -696,15 +700,33 @@
             table_equipements.ThemeStyle.RowsStyle.SelectionForeColor = Color.Black;
             table_equipements.CellPainting += Table_equipements_CellPainting;
             // 
-            // tabPage2
+            // Modèlles
             // 
-            tabPage2.Location = new Point(4, 44);
-            tabPage2.Name = "tabPage2";
-            tabPage2.Padding = new Padding(3);
-            tabPage2.Size = new Size(1082, 546);
-            tabPage2.TabIndex = 1;
-            tabPage2.Text = "tabPage2";
-            tabPage2.UseVisualStyleBackColor = true;
+            Modèlles.Location = new Point(4, 44);
+            Modèlles.Name = "Modèlles";
+            Modèlles.Padding = new Padding(3);
+            Modèlles.Size = new Size(1082, 546);
+            Modèlles.TabIndex = 1;
+            Modèlles.Text = "Modèlles";
+            Modèlles.UseVisualStyleBackColor = true;
+            // 
+            // Categories
+            // 
+            Categories.Location = new Point(4, 44);
+            Categories.Name = "Categories";
+            Categories.Size = new Size(1082, 546);
+            Categories.TabIndex = 2;
+            Categories.Text = "Categories";
+            Categories.UseVisualStyleBackColor = true;
+            // 
+            // Marques
+            // 
+            Marques.Location = new Point(4, 44);
+            Marques.Name = "Marques";
+            Marques.Size = new Size(1082, 546);
+            Marques.TabIndex = 3;
+            Marques.Text = "Marques";
+            Marques.UseVisualStyleBackColor = true;
             // 
             // home_container
             // 
@@ -1084,7 +1106,7 @@
             mom_container.ResumeLayout(false);
             stock_container.ResumeLayout(false);
             stock_containers.ResumeLayout(false);
-            tabPage1.ResumeLayout(false);
+            Articles.ResumeLayout(false);
             stockHeaderPanel.ResumeLayout(false);
             stockHeaderPanel.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)table_equipements).EndInit();
@@ -1125,8 +1147,8 @@
         private Guna.UI2.WinForms.Guna2TextBox filtreTableINVTextBox;
         private Guna.UI2.WinForms.Guna2Button btnNouveauMouvement;
         private Guna.UI2.WinForms.Guna2TabControl stock_containers;
-        private TabPage tabPage1;
-        private TabPage tabPage2;
+        private TabPage Articles;
+        private TabPage Modèlles;
         private Guna.UI2.WinForms.Guna2Panel stock_container;
         private Guna.UI2.WinForms.Guna2Panel stockHeaderPanel;
         private Guna.UI2.WinForms.Guna2HtmlLabel lblCompteur;
@@ -1144,5 +1166,7 @@
         private Guna.UI2.WinForms.Guna2Panel guna2Panel5;
         private Guna.UI2.WinForms.Guna2HtmlLabel guna2HtmlLabel2;
         private Guna.UI2.WinForms.Guna2CircleButton guna2CircleButton1;
+        private TabPage Categories;
+        private TabPage Marques;
     }
 }
