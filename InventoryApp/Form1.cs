@@ -9,6 +9,7 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Windows.Forms;
+using VotreAppNamespace;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
@@ -494,6 +495,17 @@ namespace InventoryApp
         private void btnToAccueilcontainer_Click(object sender, EventArgs e)
         {
             AfficherConteneur(home_container);
+            OuvrirFormulaireEnfant(new FrmAccueil());
+        }
+        private void OuvrirFormulaireEnfant(Form formEnfant)
+        {
+            home_container.Controls.Clear();
+            formEnfant.TopLevel = false;
+            formEnfant.FormBorderStyle = FormBorderStyle.None;
+            formEnfant.Dock = DockStyle.Fill;
+            home_container.Controls.Add(formEnfant);
+            home_container.Tag = formEnfant;
+            formEnfant.Show();
         }
 
         private void btnToStockcontainer_Click(object sender, EventArgs e)

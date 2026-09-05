@@ -222,7 +222,7 @@ namespace InventoryApp
                        m.designation AS 'Désignation',
                        (SELECT COUNT(*) FROM Modele md WHERE md.marque_id = m.id) AS 'Modèles liés'
                 FROM Marque m
-                ORDER BY m.designation";
+                ORDER BY m.id DESC";
 
             DataTable dt = DatabaseHelper.ExecuteQuery(sql);
             tableMarquesDataGridView.DataSource = dt;

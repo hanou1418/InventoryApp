@@ -37,7 +37,14 @@ namespace InventoryApp
             ("Référence",       "Référence"),
             ("Désignation",     "Désignation"),
             ("Catégorie",       "Catégorie"),
-            ("Marque",          "Marque")
+            ("Marque",          "Marque"),
+            ("Équipements liés","Équipements liés"),
+            ("En stock",        "En stock"),
+            ("Affecté",         "Affecté"),
+            ("En prêt",         "En prêt"),
+            ("En panne",        "En panne"),
+            ("En réparation",   "En réparation"),
+            ("Réformé",         "Réformé")
         };
 
         public FrmGererModeles(Form1? mainForm)
@@ -219,13 +226,23 @@ namespace InventoryApp
         public void ChargerListe()
         {
             string sql = @"
-                SELECT md.id AS 'ID', md.reference AS 'Référence', md.designation AS 'Désignation',
-                       COALESCE(c.designation,'—') AS 'Catégorie', COALESCE(mq.designation,'—') AS 'Marque',
-                       (SELECT COUNT(*) FROM Equipement e WHERE e.modele_id = md.id) AS 'Équipements liés'
-                FROM Modele md
-                LEFT JOIN Categorie c ON md.categorie_id = c.id
-                LEFT JOIN Marque mq ON md.marque_id = mq.id
-                ORDER BY md.designation";
+                            SELECT 
+                                md.id AS 'ID', 
+                                md.reference AS 'Référence', 
+                                md.designation AS 'Désignation', 
+                                COALESCE(c.designation, '—') AS 'Catégorie', 
+                                COALESCE(mq.designation, '—') AS 'Marque', 
+                                (SELECT COUNT(*) FROM Equipement e WHERE e.modele_id = md.id) AS 'Équipements liés',
+                                (SELECT COUNT(*) FROM Equipement e WHERE e.modele_id = md.id AND e.statut = 'En stock') AS 'En stock',
+                                (SELECT COUNT(*) FROM Equipement e WHERE e.modele_id = md.id AND e.statut = 'Affecté') AS 'Affecté',
+                                (SELECT COUNT(*) FROM Equipement e WHERE e.modele_id = md.id AND e.statut = 'En prêt') AS 'En prêt',
+                                (SELECT COUNT(*) FROM Equipement e WHERE e.modele_id = md.id AND e.statut = 'En panne') AS 'En panne',
+                                (SELECT COUNT(*) FROM Equipement e WHERE e.modele_id = md.id AND e.statut = 'En réparation') AS 'En réparation',
+                                (SELECT COUNT(*) FROM Equipement e WHERE e.modele_id = md.id AND e.statut = 'Réformé') AS 'Réformé'
+                            FROM Modele md
+                            LEFT JOIN Categorie c ON md.categorie_id = c.id
+                            LEFT JOIN Marque mq ON md.marque_id = mq.id
+                            ORDER BY md.id DESC";
 
             DataTable dt = DatabaseHelper.ExecuteQuery(sql);
             tableModelesDataGridView.DataSource = dt;
@@ -240,7 +257,6 @@ namespace InventoryApp
 
             AppliquerFiltre();
         }
-
         private void AppliquerFiltre()
         {
             if (tableModelesDataGridView.DataSource is not DataTable dt) return;

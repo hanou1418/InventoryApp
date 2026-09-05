@@ -72,5 +72,31 @@ namespace InventoryApp.Data
                 return cmd.ExecuteNonQuery();
             }
         }
+
+
+        public static DataTable ExecuteQueryWithParams(string sql, Dictionary<string, object> parameters)
+        {
+            DataTable dt = new DataTable();
+            using (var conn = new Microsoft.Data.Sqlite.SqliteConnection(ConnectionString))
+            {
+                conn.Open();
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = sql;
+                    if (parameters != null)
+                    {
+                        foreach (var p in parameters)
+                        {
+                            cmd.Parameters.AddWithValue(p.Key, p.Value ?? DBNull.Value);
+                        }
+                    }
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        dt.Load(reader);
+                    }
+                }
+            }
+            return dt;
+        }
     }
 }

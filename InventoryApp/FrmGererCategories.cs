@@ -220,7 +220,7 @@ namespace InventoryApp
             string sql = @"
                 SELECT c.id AS 'ID', c.code AS 'Code', c.designation AS 'Désignation',
                        (SELECT COUNT(*) FROM Modele m WHERE m.categorie_id = c.id) AS 'Modèles liés'
-                FROM Categorie c ORDER BY c.designation";
+                FROM Categorie c ORDER BY c.id DESC";
 
             DataTable dt = DatabaseHelper.ExecuteQuery(sql);
             tableCategoriesDataGridView.DataSource = dt;
