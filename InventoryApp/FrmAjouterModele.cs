@@ -34,6 +34,7 @@ namespace InventoryApp
         private Guna2Button btnNouvelleCategorie = null!;
         private Guna2ComboBox cmbMarque = null!;
         private Guna2Button btnNouvelleMarque = null!;
+        private Guna2NumericUpDown numQteAlerte = null!;
         private Guna2Button btnEnregistrer = null!;
         private Guna2Button btnAnnuler = null!;
 
@@ -103,6 +104,21 @@ namespace InventoryApp
             cmbMarque = new Guna2ComboBox { Left = 20, Top = y, Width = 275, Height = 36, BorderRadius = 6, DropDownStyle = ComboBoxStyle.DropDownList };
             btnNouvelleMarque = new Guna2Button { Left = 305, Top = y, Width = 95, Height = 36, Text = "+ Nouvelle", BorderRadius = 6, Font = new Font("Segoe UI", 8.5F, FontStyle.Bold) };
             btnNouvelleMarque.Click += BtnNouvelleMarque_Click;
+            y += 50;
+
+            var lblQteAlerte = new Label { Text = "Quantité d'alerte", Left = 20, Top = y, Width = 380, ForeColor = Color.DimGray };
+            y += 23;
+            numQteAlerte = new Guna2NumericUpDown
+            {
+                Left = 20,
+                Top = y,
+                Width = 380,
+                Height = 36,
+                BorderRadius = 6,
+                Minimum = 0,
+                Maximum = 10000,
+                Value = 0
+            };
             y += 55;
 
             btnEnregistrer = new Guna2Button { Text = "Enregistrer", Left = 200, Top = y, Width = 100, Height = 36, BorderRadius = 6, FillColor = Color.FromArgb(59, 130, 246), ForeColor = Color.White };
@@ -115,9 +131,10 @@ namespace InventoryApp
             Controls.Add(lblRef); Controls.Add(txtReference);
             Controls.Add(lblCat); Controls.Add(cmbCategorie); Controls.Add(btnNouvelleCategorie);
             Controls.Add(lblMarq); Controls.Add(cmbMarque); Controls.Add(btnNouvelleMarque);
+            Controls.Add(lblQteAlerte); Controls.Add(numQteAlerte);
             Controls.Add(btnEnregistrer); Controls.Add(btnAnnuler);
 
-            Height = y + 100;
+            Height = y + 60;
         }
 
         private void ChargerCategories()
@@ -141,7 +158,7 @@ namespace InventoryApp
         private void ChargerDonnees()
         {
             var t = DatabaseHelper.ExecuteQuery(
-                "SELECT reference, designation, categorie_id, marque_id FROM Modele WHERE id=@id",
+                "SELECT reference, designation, categorie_id, marque_id, qte_alerte FROM Modele WHERE id=@id",
                 new SqliteParameter("@id", _modeleIdEnEdition!.Value));
             if (t.Rows.Count == 0) { Close(); return; }
 
@@ -150,6 +167,7 @@ namespace InventoryApp
             txtReference.Text = row["reference"] == DBNull.Value ? "" : row["reference"].ToString();
             if (row["categorie_id"] != DBNull.Value) cmbCategorie.SelectedValue = Convert.ToInt32(row["categorie_id"]);
             if (row["marque_id"] != DBNull.Value) cmbMarque.SelectedValue = Convert.ToInt32(row["marque_id"]);
+            if (row["qte_alerte"] != DBNull.Value) numQteAlerte.Value = Convert.ToDecimal(row["qte_alerte"]);
         }
 
         private void BtnNouvelleCategorie_Click(object? sender, EventArgs e)
@@ -200,7 +218,7 @@ namespace InventoryApp
                     {
                         cmd.CommandText = @"
                             UPDATE Modele
-                            SET designation=@desig, reference=@ref, categorie_id=@cat, marque_id=@marq, date_modification=CURRENT_TIMESTAMP
+                            SET designation=@desig, reference=@ref, categorie_id=@cat, marque_id=@marq, qte_alerte=@qteAlerte, date_modification=CURRENT_TIMESTAMP
                             WHERE id=@id";
                         cmd.Parameters.AddWithValue("@id", _modeleIdEnEdition!.Value);
                         ModeleIdResultat = _modeleIdEnEdition;
@@ -208,8 +226,8 @@ namespace InventoryApp
                     else
                     {
                         cmd.CommandText = @"
-                            INSERT INTO Modele (designation, reference, categorie_id, marque_id)
-                            VALUES (@desig, @ref, @cat, @marq);
+                            INSERT INTO Modele (designation, reference, categorie_id, marque_id, qte_alerte)
+                            VALUES (@desig, @ref, @cat, @marq, @qteAlerte);
                             SELECT last_insert_rowid();";
                     }
 
@@ -217,6 +235,7 @@ namespace InventoryApp
                     cmd.Parameters.AddWithValue("@ref", refValue);
                     cmd.Parameters.AddWithValue("@cat", catValue);
                     cmd.Parameters.AddWithValue("@marq", marqValue);
+                    cmd.Parameters.AddWithValue("@qteAlerte", Convert.ToInt32(numQteAlerte.Value));
 
                     if (!EnModeEdition)
                         ModeleIdResultat = Convert.ToInt32(cmd.ExecuteScalar());

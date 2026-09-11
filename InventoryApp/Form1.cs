@@ -9,7 +9,6 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Windows.Forms;
-using VotreAppNamespace;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
@@ -100,6 +99,7 @@ namespace InventoryApp
 
             AfficherInfoUtilisateur();
             AfficherConteneur(home_container);
+            OuvrirFormulaireEnfant(CreerFrmAccueil());
 
 
             stock_containers.SelectedIndexChanged += stock_containers_SelectedIndexChanged;
@@ -494,9 +494,78 @@ namespace InventoryApp
 
         private void btnToAccueilcontainer_Click(object sender, EventArgs e)
         {
+            /* AfficherConteneur(home_container);
+
+             var frmAccueil = new FrmAccueil(this);
+
+             // Wire up dashboard action events to Form1 methods
+             frmAccueil.OnNouveauMouvementClicked += (s, ev) => btnNouveauMouvement_Click(s, ev);
+             frmAccueil.OnAjouterEquipementClicked += (s, ev) => btnAjNouvEquip_Click(s, ev);
+             frmAccueil.OnInventaireClicked += (s, ev) => btnNouveauInventaire_Click(s, ev);
+             frmAccueil.OnEditEmployeRequested += FrmAccueil_OnEditEmployeRequested;
+             frmAccueil.OnDeleteEmployeRequested += FrmAccueil_OnDeleteEmployeRequested;
+
+             OuvrirFormulaireEnfant(frmAccueil);*/
             AfficherConteneur(home_container);
-            OuvrirFormulaireEnfant(new FrmAccueil());
+            OuvrirFormulaireEnfant(CreerFrmAccueil());
         }
+
+
+        // Instancie FrmAccueil et câble systématiquement tous ses événements.
+        // Utilisée à la fois au démarrage (constructeur) et à chaque retour sur "Accueil",
+        // pour que les boutons Modifier/Supprimer/Imprimer fonctionnent dès le premier clic.
+        private FrmAccueil CreerFrmAccueil()
+        {
+            var frmAccueil = new FrmAccueil(this);
+
+            frmAccueil.OnNouveauMouvementClicked += (s, ev) => btnNouveauMouvement_Click(s, ev);
+            frmAccueil.OnAjouterEquipementClicked += (s, ev) => btnAjNouvEquip_Click(s, ev);
+            frmAccueil.OnInventaireClicked += (s, ev) => btnNouveauInventaire_Click(s, ev);
+            frmAccueil.OnEditEmployeRequested += FrmAccueil_OnEditEmployeRequested;
+            frmAccueil.OnDeleteEmployeRequested += FrmAccueil_OnDeleteEmployeRequested;
+
+            return frmAccueil;
+        }
+
+        // Cette méthode est appelée quand l'utilisateur clique sur "Modifier" un employé dans FrmAccueil
+        private void FrmAccueil_OnEditEmployeRequested(object sender, int idEmploye)
+        {
+            // On rouvre EXACTEMENT le même formulaire, mais en passant l'id :
+            // -> le constructeur bascule automatiquement en mode "Modification"
+            using (var frm = new FrmAjouterEmploye(idEmploye))
+            {
+                if (frm.ShowDialog(this) == DialogResult.OK)
+                {
+                    // Rafraîchir la liste des employés affichée dans FrmAccueil
+                    if (home_container.Tag is FrmAccueil accueilOuvert)
+                        accueilOuvert.ChargerResumeEmployes();
+                }
+            }
+        }
+
+        // Cette méthode sera appelée quand l'utilisateur clique sur "Supprimer" un employé dans FrmAccueil
+        // Cette méthode est appelée quand l'utilisateur clique sur "Supprimer" un employé dans FrmAccueil
+        private void FrmAccueil_OnDeleteEmployeRequested(object sender, int idEmploye)
+        {
+            // La confirmation a déjà été demandée dans FrmAccueil ; ici on exécute réellement la suppression
+            try
+            {
+                DatabaseHelper.ExecuteNonQuery("DELETE FROM Employe WHERE id = @id", new SqliteParameter("@id", idEmploye));
+
+                if (home_container.Tag is FrmAccueil accueilOuvert)
+                    accueilOuvert.ChargerResumeEmployes();
+            }
+            catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+            {
+                MessageBox.Show(
+                    "Impossible de supprimer : cet employé est référencé dans un historique de mouvements.",
+                    "Suppression refusée", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+
+
+
         private void OuvrirFormulaireEnfant(Form formEnfant)
         {
             home_container.Controls.Clear();
@@ -1409,5 +1478,12 @@ namespace InventoryApp
                 ChargerFormulaireMarqueDansTab();
             }
         }
+    
+    
+
+
+    
+    
+    
     }
 }

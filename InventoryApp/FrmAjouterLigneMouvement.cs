@@ -49,7 +49,16 @@ namespace InventoryApp
             BackColor = Color.White;
 
             ConstruireControles();
-            Load += (s, e) => ChargerModeles();
+            Load += (s, e) =>
+            {
+                if (EnModeEdition && _ligneAModifier != null)
+                {
+                    tglEstSortie.Checked = _ligneAModifier.EstSortie;
+                    cmbEtat.SelectedItem = _ligneAModifier.Etat;
+                    txtObservation.Text = _ligneAModifier.Observation ?? "";
+                }
+                ChargerModeles();
+            };
         }
 
         private void ConstruireControles()
@@ -93,11 +102,44 @@ namespace InventoryApp
                 return l;
             }
 
+            // 1. DÉPLACEMENT EN HAUT : Toggle Switch (Sortie / Retour)
+            lblToggleEtat = new Label
+            {
+                Left = marge,
+                Top = y + 4,
+                Width = 280,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = _darkNavy,
+                Text = "Sortie (l'équipement quitte le stock)"
+            };
+            tglEstSortie = new Guna2ToggleSwitch
+            {
+                Left = marge + 290,
+                Top = y,
+                Checked = true,
+                CheckedState = { FillColor = _primaryBlue }
+            };
+
+            tglEstSortie.CheckedChanged += (s, e) =>
+            {
+                lblToggleEtat.Text = tglEstSortie.Checked
+                    ? "Sortie (l'équipement quitte le stock)"
+                    : "Retour (l'équipement revient au stock)";
+                // Recharger les modèles selon l'état du filtre Sortie / Retour
+                ChargerModeles();
+            };
+
+            Controls.Add(lblToggleEtat);
+            Controls.Add(tglEstSortie);
+            y += 42;
+
+            // 2. Champ Modèle
             MakeLabel("Modèle *");
             cmbModele = new Guna2ComboBox { Left = marge, Top = y, Width = largeur, Height = 36, BorderRadius = 6, DropDownStyle = ComboBoxStyle.DropDownList };
             cmbModele.SelectedIndexChanged += (s, e) => ChargerEquipementsDuModele(null);
             Controls.Add(cmbModele); y += 42;
 
+            // 3. Champ Équipement
             MakeLabel("Équipement (N° série / statut actuel) *");
             cmbEquipement = new Guna2ComboBox { Left = marge, Top = y, Width = largeur, Height = 36, BorderRadius = 6, DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
             cmbEquipement.SelectedIndexChanged += (s, e) => AfficherStatutActuel();
@@ -106,25 +148,19 @@ namespace InventoryApp
             lblStatutActuel = new Label { Left = marge, Top = y, Width = largeur, Font = new Font("Segoe UI", 8.5F, FontStyle.Italic), ForeColor = _primaryBlue, Text = "" };
             Controls.Add(lblStatutActuel); y += 22;
 
+            // 4. État à ce moment
             MakeLabel("État à ce moment");
             cmbEtat = new Guna2ComboBox { Left = marge, Top = y, Width = largeur, Height = 36, BorderRadius = 6, DropDownStyle = ComboBoxStyle.DropDownList };
             cmbEtat.Items.AddRange(new object[] { "Neuf", "Bon", "Usé", "Endommagé", "Hors service" });
             cmbEtat.SelectedIndex = 1;
             Controls.Add(cmbEtat); y += 45;
 
-            lblToggleEtat = new Label { Left = marge, Top = y + 4, Width = 280, Font = new Font("Segoe UI", 8.5F, FontStyle.Regular), ForeColor = _darkNavy, Text = "Sortie (l'équipement quitte le stock)" };
-            tglEstSortie = new Guna2ToggleSwitch { Left = marge + 290, Top = y, Checked = true, CheckedState = { FillColor = _primaryBlue } };
-            tglEstSortie.CheckedChanged += (s, e) =>
-                lblToggleEtat.Text = tglEstSortie.Checked
-                    ? "Sortie (l'équipement quitte le stock)"
-                    : "Retour (l'équipement revient au stock)";
-            Controls.Add(lblToggleEtat);
-            Controls.Add(tglEstSortie); y += 38;
-
+            // 5. Observation
             MakeLabel("Observation (optionnel)");
             txtObservation = new Guna2TextBox { Left = marge, Top = y, Width = largeur, Height = 36, BorderRadius = 6 };
             Controls.Add(txtObservation); y += 50;
 
+            // Boutons d'action
             btnAjouter = new Guna2Button
             {
                 Text = EnModeEdition ? "Enregistrer" : "Ajouter à la liste",
@@ -161,20 +197,36 @@ namespace InventoryApp
 
         private void ChargerModeles()
         {
-            // Requête avec jointures et concaténation personnalisée
-            string sql = @"
-                SELECT m.id,
+            bool estSortie = tglEstSortie.Checked;
+
+            // Filtre : Si "Sortie" -> uniquement les modèles ayant au moins 1 équipement "En stock"
+            // Sinon (Retour) -> uniquement les modèles ayant des équipements non "En stock"
+            string conditionStatut = estSortie ? "e.statut = 'En stock'" : "e.statut != 'En stock'";
+
+            string sql = $@"
+                SELECT DISTINCT m.id,
                        TRIM(COALESCE(c.designation,'') || ' ' || COALESCE(mq.designation,'') || ' ' || m.designation || ' ' || COALESCE(m.reference,'')) AS affichage
                 FROM Modele m
+                JOIN Equipement e ON e.modele_id = m.id
                 LEFT JOIN Categorie c ON m.categorie_id = c.id
                 LEFT JOIN Marque mq ON m.marque_id = mq.id
+                WHERE {conditionStatut}
                 ORDER BY m.designation";
 
             var t = DatabaseHelper.ExecuteQuery(sql);
 
-            cmbModele.DisplayMember = "affichage"; // Utilisation de la colonne générée
+            cmbModele.DataSource = null;
+            cmbModele.DisplayMember = "affichage";
             cmbModele.ValueMember = "id";
             cmbModele.DataSource = t;
+
+            if (t.Rows.Count == 0)
+            {
+                cmbEquipement.DataSource = null;
+                cmbEquipement.Enabled = false;
+                lblStatutActuel.Text = estSortie ? "Aucun modèle avec des équipements en stock." : "Aucun modèle avec des équipements hors stock.";
+                return;
+            }
 
             if (EnModeEdition && _ligneAModifier != null)
             {
@@ -187,13 +239,14 @@ namespace InventoryApp
                     int modeleId = Convert.ToInt32(infosEq.Rows[0]["modele_id"]);
                     cmbModele.SelectedValue = modeleId;
                     ChargerEquipementsDuModele(_ligneAModifier.EquipementId);
+                    return;
                 }
-
-                cmbEtat.SelectedItem = _ligneAModifier.Etat;
-                tglEstSortie.Checked = _ligneAModifier.EstSortie;
-                txtObservation.Text = _ligneAModifier.Observation ?? "";
             }
+
+            // Charger les équipements du premier modèle par défaut
+            ChargerEquipementsDuModele(null);
         }
+
         private void ChargerEquipementsDuModele(int? preselectionnerId)
         {
             cmbEquipement.Enabled = false;
@@ -203,21 +256,25 @@ namespace InventoryApp
             if (cmbModele.SelectedValue == null || !int.TryParse(cmbModele.SelectedValue.ToString(), out int modeleId))
                 return;
 
-            // AJOUT : "statut" est maintenant sélectionné explicitement comme colonne
-            string sql = @"
-                SELECT id, 
-                       statut, 
-                       id || '  |  ' || COALESCE(code_barre,'-') || '  |  ' || COALESCE(numero_serie,'-') || '  |  ' || statut || '  |  ' || COALESCE(etat,'-') AS affichage 
-                FROM Equipement 
-                WHERE modele_id = @modeleId 
-                ORDER BY id DESC";
+            bool estSortie = tglEstSortie.Checked;
+            string conditionStatut = estSortie ? "e.statut = 'En stock'" : "e.statut != 'En stock'";
+
+            string sql = $@"
+                SELECT e.id, 
+                       e.statut, 
+                       e.id || '  |  ' || COALESCE(e.code_barre,'-') || '  |  ' || COALESCE(e.numero_serie,'-') || '  |  ' || e.statut || '  |  ' || COALESCE(e.etat,'-') AS affichage 
+                FROM Equipement e
+                WHERE e.modele_id = @modeleId AND {conditionStatut}
+                ORDER BY e.id DESC";
 
             var t = DatabaseHelper.ExecuteQuery(sql,
                 new Microsoft.Data.Sqlite.SqliteParameter("@modeleId", modeleId));
 
             if (t.Rows.Count == 0)
             {
-                lblStatutActuel.Text = "Aucun équipement enregistré pour ce modèle.";
+                lblStatutActuel.Text = estSortie
+                    ? "Aucun équipement en stock pour ce modèle."
+                    : "Aucun équipement disponible pour retour pour ce modèle.";
                 return;
             }
 
@@ -231,6 +288,7 @@ namespace InventoryApp
 
             AfficherStatutActuel();
         }
+
         private void AfficherStatutActuel()
         {
             if (cmbEquipement.SelectedItem is DataRowView rowView)

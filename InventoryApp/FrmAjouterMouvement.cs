@@ -8,6 +8,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace InventoryApp
@@ -37,12 +38,14 @@ namespace InventoryApp
         private Guna2DateTimePicker dtpDateMouvement = null!;
         private Guna2TextBox txtContenu = null!;
         private Guna2TextBox txtObservationGenerale = null!;
+        private Guna2TextBox txtAQui = null!;
 
         private Guna2DataGridView dgvLignes = null!;
         private Guna2Button btnAjouterLigne = null!;
         private Guna2Button btnEnregistrer = null!;
         private Guna2Button btnAnnuler = null!;
         private Label lblTitre = null!;
+
 
         // 1. Constructeur pour la CRÉATION (1 argument)
         public FrmAjouterMouvement(Form1? mainForm) : this(mainForm, null)
@@ -73,7 +76,6 @@ namespace InventoryApp
                 RafraichirGrille();
             };
         }
-
         private void ConstruireControles()
         {
             // Panel En-tête
@@ -213,12 +215,23 @@ namespace InventoryApp
 
             y += 65;
 
-            MakeLabel("Contenu du document (Texte d'attestation)", margeG);
-            txtContenu = new Guna2TextBox
+            MakeLabel("À qui *", margeG);
+            txtAQui = new Guna2TextBox
             {
                 Left = margeG,
                 Top = y + 20,
-                Width = margeD + largeurChamp - margeG,
+                Width = largeurChamp,
+                Height = 36,
+                BorderRadius = 6
+            };
+            Controls.Add(txtAQui);
+
+            MakeLabel("Contenu du document (Texte d'attestation)", margeD);
+            txtContenu = new Guna2TextBox
+            {
+                Left = margeD,
+                Top = y + 20,
+                Width = largeurChamp,
                 Height = 55,
                 Multiline = true,
                 BorderRadius = 6,
@@ -286,11 +299,10 @@ namespace InventoryApp
             dgvLignes.Columns.Add(new DataGridViewTextBoxColumn { Name = "colObs", HeaderText = "Observation", DataPropertyName = "Observation", Width = 140 });
             dgvLignes.Columns.Add(new DataGridViewTextBoxColumn { Name = "colModifierLigne", HeaderText = "Modifier", Width = 70, ReadOnly = true });
             dgvLignes.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSupprimerLigne", HeaderText = "Supprimer", Width = 75, ReadOnly = true });
-            // Événements pour le clic et le dessin personnalisé des boutons d'actions
+
             dgvLignes.CellMouseClick += DgvLignes_CellMouseClick;
             dgvLignes.CellPainting += DgvLignes_CellPainting;
 
-            // Rafraîchir la grille pour animer les boutons au survol
             dgvLignes.MouseMove += (s, e) => dgvLignes.Invalidate();
             dgvLignes.MouseDown += (s, e) => dgvLignes.Invalidate();
             dgvLignes.MouseUp += (s, e) => dgvLignes.Invalidate();
@@ -365,21 +377,17 @@ namespace InventoryApp
         {
             if (e.Graphics == null) return;
 
-            // 1. Dessiner d'abord le fond standard de la cellule
             e.PaintBackground(e.CellBounds, true);
 
-            // 2. Calculer la zone du rectangle
             Color currentBg = isClicked ? bgClick : (isHovered ? bgHover : bg);
             Rectangle btnRect = new Rectangle(e.CellBounds.Left + 4, e.CellBounds.Top + 4, e.CellBounds.Width - 8, e.CellBounds.Height - 8);
 
-            // 3. Dessiner le rectangle de fond et sa bordure
             using (var brush = new SolidBrush(currentBg))
                 e.Graphics.FillRectangle(brush, btnRect);
 
             using (var pen = new Pen(borderColor))
                 e.Graphics.DrawRectangle(pen, btnRect);
 
-            // 4. Charger et dessiner l'icône depuis le dossier image/ ou la racine
             string path = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "image", iconFilename);
             if (!System.IO.File.Exists(path)) path = System.IO.Path.Combine("image", iconFilename);
             if (!System.IO.File.Exists(path)) path = System.IO.Path.Combine(Application.StartupPath, iconFilename);
@@ -394,38 +402,23 @@ namespace InventoryApp
                 }
             }
 
-            // 5. Annuler le rendu par défaut de WinForms
             e.Handled = true;
         }
-        private static GraphicsPath GetRoundedPath(Rectangle rect, int radius)
-    {
-        GraphicsPath path = new GraphicsPath();
-        int diameter = radius * 2;
-        path.AddArc(rect.X, rect.Y, diameter, diameter, 180, 90);
-        path.AddArc(rect.Right - diameter, rect.Y, diameter, diameter, 270, 90);
-        path.AddArc(rect.Right - diameter, rect.Bottom - diameter, diameter, diameter, 0, 90);
-        path.AddArc(rect.X, rect.Bottom - diameter, diameter, diameter, 90, 90);
-        path.CloseFigure();
-        return path;
-    }
 
         private void ChargerEmployes()
         {
             DataTable dtSource = DatabaseHelper.ExecuteQuery(@"
-        SELECT id, (nom || ' ' || prenom) AS affichage 
-        FROM Employe 
-        WHERE statut = 'Actif' 
-        ORDER BY nom");
+                SELECT id, (nom || ' ' || prenom) AS affichage 
+                FROM Employe 
+                WHERE statut = 'Actif' 
+                ORDER BY nom");
 
-            // Créer une structure propre avec les bons types C#
             DataTable t = new DataTable();
-            t.Columns.Add("id", typeof(object)); // Accepte long et DBNull
-            t.Columns.Add("affichage", typeof(string)); // Force le type string
+            t.Columns.Add("id", typeof(object));
+            t.Columns.Add("affichage", typeof(string));
 
-            // Ajouter la ligne d'invite
             t.Rows.Add(DBNull.Value, "-- choisir un employé --");
 
-            // Copier les données chargées
             foreach (DataRow row in dtSource.Rows)
             {
                 t.Rows.Add(row["id"], row["affichage"]?.ToString());
@@ -437,10 +430,11 @@ namespace InventoryApp
             cmbEmploye.DataSource = t;
             cmbEmploye.SelectedIndex = 0;
         }
+
         private void ChargerMouvementExistant(long id)
         {
             var dtMvt = DatabaseHelper.ExecuteQuery(@"
-                SELECT nom, reference, type_mouvement, employe_id, date_mouvement, contenu, observation 
+                SELECT nom, reference, type_mouvement, employe_id, date_mouvement, contenu, observation, a_qui 
                 FROM Mouvement WHERE id = @id", new SqliteParameter("@id", id));
 
             if (dtMvt.Rows.Count == 0) return;
@@ -450,15 +444,13 @@ namespace InventoryApp
             if (row["type_mouvement"] != DBNull.Value) cmbTypeMouvement.SelectedItem = row["type_mouvement"].ToString();
             if (row["reference"] != DBNull.Value) txtReference.Text = row["reference"].ToString();
             if (row["observation"] != DBNull.Value) txtObservationGenerale.Text = row["observation"].ToString();
+            if (row["a_qui"] != DBNull.Value) txtAQui.Text = row["a_qui"].ToString();
             if (row["contenu"] != DBNull.Value) txtContenu.Text = row["contenu"].ToString();
             if (row["employe_id"] != DBNull.Value)
             {
                 long empId = Convert.ToInt64(row["employe_id"]);
-
-                // Forcer la sélection en recherchant directement l'élément par sa valeur
                 cmbEmploye.SelectedValue = empId;
 
-                // Sécurité supplémentaire si Guna2ComboBox n'a pas mis à jour l'index
                 if (cmbEmploye.SelectedIndex == -1 || cmbEmploye.SelectedIndex == 0)
                 {
                     foreach (DataRowView item in cmbEmploye.Items)
@@ -474,7 +466,6 @@ namespace InventoryApp
             if (row["date_mouvement"] != DBNull.Value && DateTime.TryParse(row["date_mouvement"].ToString(), out DateTime dt))
                 dtpDateMouvement.Value = dt;
 
-            // Charger les lignes associées
             var dtLignes = DatabaseHelper.ExecuteQuery(@"
                 SELECT 
                     lm.equipement_id AS equipement_id, 
@@ -493,7 +484,6 @@ namespace InventoryApp
             {
                 _lignes.Add(new LigneMouvementTemp
                 {
-                    // ✅ Utiliser le nom exact de la colonne sélectionnée dans le SELECT SQL
                     EquipementId = Convert.ToInt32(r["equipement_id"]),
                     Affichage = $"{r["designation"]} (S/N: {r["num_serie"]})",
                     Etat = r["etat_a_la_mouvement"]?.ToString() ?? "Bon",
@@ -573,6 +563,13 @@ namespace InventoryApp
 
         private void BtnEnregistrer_Click(object? sender, EventArgs e)
         {
+            if (string.IsNullOrWhiteSpace(txtAQui.Text))
+            {
+                MessageBox.Show("Le champ 'À qui' est obligatoire.", "Champ manquant",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtAQui.Focus();
+                return;
+            }
             if (cmbNomMouvement.SelectedItem == null || cmbTypeMouvement.SelectedItem == null)
             {
                 MessageBox.Show("Le type de document et le type de mouvement sont obligatoires.", "Champs manquants",
@@ -596,6 +593,40 @@ namespace InventoryApp
             string typeMouvement = cmbTypeMouvement.SelectedItem.ToString()!;
             string nomMouvement = cmbNomMouvement.SelectedItem.ToString()!;
 
+            // -----------------------------------------------------------------------------------------
+            // 1. VALIDATION DE COHÉRENCE : Type de Mouvement vs Lignes (Sortie / Retour)
+            // -----------------------------------------------------------------------------------------
+            bool estUnMouvementDeRetour = typeMouvement.Equals("Retour", StringComparison.OrdinalIgnoreCase);
+
+            if (estUnMouvementDeRetour)
+            {
+                // Si le type est "Retour", il faut qu'au moins une ligne soit un Retour (est_sortie = false)
+                bool contientUnRetour = _lignes.Any(l => !l.EstSortie);
+                if (!contientUnRetour)
+                {
+                    MessageBox.Show(
+                        "Pour un type de mouvement 'Retour', la liste doit contenir au moins une ligne de type Retour (Sortie décochée).",
+                        "Incohérence des lignes",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+            }
+            else
+            {
+                // Pour les types "Affectation", "Prêt", "Maintenance", "Réforme", il faut au moins une ligne de type Sortie (est_sortie = true)
+                bool contientUneSortie = _lignes.Any(l => l.EstSortie);
+                if (!contientUneSortie)
+                {
+                    MessageBox.Show(
+                        $"Pour un type de mouvement '{typeMouvement}', la liste doit contenir au moins une ligne de type Sortie (Sortie cochée).",
+                        "Incohérence des lignes",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+            }
+
             using (var conn = DatabaseHelper.GetConnection())
             {
                 using (var tx = conn.BeginTransaction())
@@ -608,7 +639,7 @@ namespace InventoryApp
                         {
                             mouvementId = _mouvementIdToEdit.Value;
 
-                            // 1. UPDATE du Mouvement
+                            // UPDATE du Mouvement
                             using (var cmd = conn.CreateCommand())
                             {
                                 cmd.Transaction = tx;
@@ -616,7 +647,7 @@ namespace InventoryApp
                                     UPDATE Mouvement 
                                     SET nom = @nom, reference = @ref, type_mouvement = @type, 
                                         employe_id = @emp, date_mouvement = @date, 
-                                        contenu = @contenu, observation = @obs
+                                        contenu = @contenu, observation = @obs, a_qui = @a_qui
                                     WHERE id = @id;";
                                 cmd.Parameters.AddWithValue("@id", mouvementId);
                                 cmd.Parameters.AddWithValue("@nom", nomMouvement);
@@ -626,10 +657,11 @@ namespace InventoryApp
                                 cmd.Parameters.AddWithValue("@date", dtpDateMouvement.Value.ToString("yyyy-MM-dd"));
                                 cmd.Parameters.AddWithValue("@contenu", string.IsNullOrWhiteSpace(txtContenu.Text) ? (object)DBNull.Value : txtContenu.Text.Trim());
                                 cmd.Parameters.AddWithValue("@obs", string.IsNullOrWhiteSpace(txtObservationGenerale.Text) ? (object)DBNull.Value : txtObservationGenerale.Text.Trim());
+                                cmd.Parameters.AddWithValue("@a_qui", txtAQui.Text.Trim());
                                 cmd.ExecuteNonQuery();
                             }
 
-                            // 2. Supprimer les anciennes lignes pour réinsérer les nouvelles
+                            // Supprimer les anciennes lignes pour réinsérer les nouvelles
                             using (var cmd = conn.CreateCommand())
                             {
                                 cmd.Transaction = tx;
@@ -646,8 +678,8 @@ namespace InventoryApp
                             {
                                 cmd.Transaction = tx;
                                 cmd.CommandText = @"
-                                    INSERT INTO Mouvement (code_mouvement, nom, reference, type_mouvement, employe_id, date_mouvement, contenu, observation)
-                                    VALUES (@code, @nom, @ref, @type, @emp, @date, @contenu, @obs);
+                                    INSERT INTO Mouvement (code_mouvement, nom, reference, type_mouvement, employe_id, date_mouvement, contenu, observation, a_qui)
+                                    VALUES (@code, @nom, @ref, @type, @emp, @date, @contenu, @obs, @a_qui);
                                     SELECT last_insert_rowid();";
                                 cmd.Parameters.AddWithValue("@code", codeMouvement);
                                 cmd.Parameters.AddWithValue("@nom", nomMouvement);
@@ -657,12 +689,13 @@ namespace InventoryApp
                                 cmd.Parameters.AddWithValue("@date", dtpDateMouvement.Value.ToString("yyyy-MM-dd"));
                                 cmd.Parameters.AddWithValue("@contenu", string.IsNullOrWhiteSpace(txtContenu.Text) ? (object)DBNull.Value : txtContenu.Text.Trim());
                                 cmd.Parameters.AddWithValue("@obs", string.IsNullOrWhiteSpace(txtObservationGenerale.Text) ? (object)DBNull.Value : txtObservationGenerale.Text.Trim());
+                                cmd.Parameters.AddWithValue("@a_qui", txtAQui.Text.Trim());
 
                                 mouvementId = (long)cmd.ExecuteScalar()!;
                             }
                         }
 
-                        // Réinsertion/Insertion des lignes + mise à jour des équipements
+                        // Insertion des lignes + mise à jour du STATUT et de l'ÉTAT de chaque équipement
                         foreach (var ligne in _lignes)
                         {
                             using (var cmd = conn.CreateCommand())
@@ -680,14 +713,21 @@ namespace InventoryApp
                             }
 
                             string nouveauStatut = DeterminerNouveauStatut(typeMouvement, ligne.EstSortie);
+
+                            // -----------------------------------------------------------------------------------------
+                            // 2. MISE À JOUR DE L'ÉQUIPEMENT : Statut ET État mis à jour simultanément
+                            // -----------------------------------------------------------------------------------------
                             using (var cmd = conn.CreateCommand())
                             {
                                 cmd.Transaction = tx;
                                 cmd.CommandText = @"
                                     UPDATE Equipement 
-                                    SET statut = @statut, date_modification = CURRENT_TIMESTAMP
+                                    SET statut = @statut, 
+                                        etat = @etat, 
+                                        date_modification = CURRENT_TIMESTAMP
                                     WHERE id = @id;";
                                 cmd.Parameters.AddWithValue("@statut", nouveauStatut);
+                                cmd.Parameters.AddWithValue("@etat", ligne.Etat); // Mise à jour de l'état
                                 cmd.Parameters.AddWithValue("@id", ligne.EquipementId);
                                 cmd.ExecuteNonQuery();
                             }

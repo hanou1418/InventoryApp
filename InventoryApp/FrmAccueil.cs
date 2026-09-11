@@ -1,6 +1,5 @@
 ﻿using Guna.UI2.WinForms;
 using InventoryApp.Data;
-using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -8,161 +7,258 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
-namespace VotreAppNamespace
+namespace InventoryApp
 {
     public class FrmAccueil : Form
     {
-        // Événements pour rendre les boutons fonctionnels
+        // Events utilisés par Form1
         public event EventHandler OnNouveauMouvementClicked;
         public event EventHandler OnAjouterEquipementClicked;
         public event EventHandler OnAjouterEmployeClicked;
         public event EventHandler OnInventaireClicked;
+        public event EventHandler<int> OnEditEmployeRequested;
+        public event EventHandler<int> OnDeleteEmployeRequested;
 
-        // Éléments du Header Animé
+        private readonly Form1 _mainForm;
+
+        // Couleurs
+        private readonly Color couleurFond = Color.FromArgb(245, 247, 250);
+        private readonly Color couleurTexte = Color.FromArgb(30, 41, 59);
+
+        // Header
         private Guna2Panel panelHeader;
         private Label lblTitreAnime;
         private System.Windows.Forms.Timer timerHeaderAnimation;
         private int posXText;
-        private const string TEXTE_HEADER = "Ministère de l'Intérieur, des Collectivités Locales et des Transports — Direction Générale des Transmissions Nationales — Direction des Transmissions Nationales de la Wilaya de Relizane";
 
-        // KPI Cards
+        private const string TEXTE_HEADER = " République Algérienne Démocratique et Populaire __ Ministère de l'Intérieur, des Collectivités Locales et des Transports __ Direction Générale des Transmissions Nationales __ Direction des Transmissions Nationales de la Wilaya de Relizane     الجمهورية الجزائرية الديمقراطية الشعبية __ وزارة الداخلية والجماعات المحلية والتهيئة العمرانية __ المديرية العامة للمواصلات السلكية واللاسلكيةالوطنية __ مديرية المواصلات السلكية واللاسلكيةالوطنية لولاية غليزان";
+        // Cartes statistiques
         private TableLayoutPanel layoutCards;
-        private Guna2Panel cardTotal, cardStock, cardAffecte, cardPanne;
-        private Label lblTotalNum, lblStockNum, lblAffecteNum, lblPanneNum;
+        private Label lblTotalNum;
+        private Label lblStockNum;
+        private Label lblAffecteNum;
+        private Label lblPanneNum;
 
-        // Boutons d'action
-        private TableLayoutPanel layoutActions;
+        // Toolbar
+        private Guna2Panel panelToolbar;
+        private Guna2TextBox txtSearch;
+        private FlowLayoutPanel flowActions;
+        private Guna2Button btnNewMovement;
+        private Guna2Button btnQuickAddEquip;
+        private Guna2Button btnQuickAddEmp;
+        private Guna2Button btnInventory;
 
-        // Section Camembert (Pie-Chart Dessiné) + ComboBox
+        // Graphique
         private Guna2Panel panelChartSection;
         private Guna2ComboBox cbCategories;
         private Panel panelPieChartDisplay;
         private DataTable dtChartData;
 
-        // Double Grille
+        // Tableaux
         private TableLayoutPanel layoutTables;
         private Guna2DataGridView gridMouvements;
         private Guna2DataGridView gridEmployes;
 
-        public FrmAccueil()
+        // Footer
+        private Guna2Panel panelFooter;
+        private Label lblConnectionStatus;
+        private Label lblDateTime;
+        private System.Windows.Forms.Timer timerClock;
+
+        public FrmAccueil(Form1 mainForm)
         {
+            _mainForm = mainForm;
+
             InitializeComponent();
-            DémarrerAnimationHeader();
+
+            StartHeaderAnimation();
+            StartClock();
+
             ChargerStatistiques();
             ChargerCategoriesCombo();
             ChargerPieChartStatut(null);
-            ChargerMouvementsRecents();
+            ChargerQTEAlert();
             ChargerResumeEmployes();
+            UpdateDbConnectionStatus();
         }
 
         private void InitializeComponent()
         {
-            this.TopLevel = false;
-            this.FormBorderStyle = FormBorderStyle.None;
-            this.Dock = DockStyle.Fill;
-            this.BackColor = Color.FromArgb(242, 244, 247);
-            this.Padding = new Padding(20);
-            this.AutoScroll = true;
+            SuspendLayout();
 
-            // ==========================================
-            // 1. EN-TÊTE AVEC TITRE ANIMÉ
-            // ==========================================
+            // Formulaire enfant dans home_container
+            TopLevel = false;
+            FormBorderStyle = FormBorderStyle.None;
+            Dock = DockStyle.Fill;
+
+            BackColor = couleurFond;
+            Padding = new Padding(12);
+            AutoScroll = true;
+            AutoScaleMode = AutoScaleMode.Dpi;
+            RightToLeft = RightToLeft.No;
+            RightToLeftLayout = false;
+
+            // ================= HEADER =================
             panelHeader = new Guna2Panel
             {
                 Dock = DockStyle.Top,
-                Height = 45,
-                FillColor = Color.FromArgb(30, 41, 59),
-                BorderRadius = 8,
-                Margin = new Padding(0, 0, 0, 15)
+                Height = 52,
+                FillColor = Color.FromArgb(15, 23, 42),
+                BorderRadius = 10,
+                Margin = new Padding(0, 0, 0, 10)
             };
+
+            panelHeader.ShadowDecoration.Enabled = true;
+            panelHeader.ShadowDecoration.Depth = 5;
+            panelHeader.ShadowDecoration.Color = Color.FromArgb(50, 0, 0, 0);
 
             lblTitreAnime = new Label
             {
                 Text = TEXTE_HEADER,
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
-                ForeColor = Color.White,
                 AutoSize = true,
                 BackColor = Color.Transparent,
-                Top = 10
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Top = 16,
+                Left = 0
             };
+
             panelHeader.Controls.Add(lblTitreAnime);
 
-            timerHeaderAnimation = new System.Windows.Forms.Timer { Interval = 25 };
+            timerHeaderAnimation = new System.Windows.Forms.Timer
+            {
+                Interval = 25
+            };
             timerHeaderAnimation.Tick += TimerHeaderAnimation_Tick;
 
-            // ==========================================
-            // 2. CARTES STATISTIQUES (KPI)
-            // ==========================================
+            // ================= CARTES KPI =================
             layoutCards = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
-                Height = 90,
+                Height = 105,
                 ColumnCount = 4,
                 RowCount = 1,
-                Margin = new Padding(0, 10, 0, 15)
+                Margin = new Padding(0, 0, 0, 10),
+                Padding = new Padding(0)
             };
+
             layoutCards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
             layoutCards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
             layoutCards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
             layoutCards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
 
-            cardTotal = CreerCarte("Total Équipements", "0", Color.FromArgb(37, 99, 235), out lblTotalNum);
-            cardStock = CreerCarte("En Stock", "0", Color.FromArgb(16, 185, 129), out lblStockNum);
-            cardAffecte = CreerCarte("Affectés / Prêt", "0", Color.FromArgb(245, 158, 11), out lblAffecteNum);
-            cardPanne = CreerCarte("En Panne / Réparation", "0", Color.FromArgb(239, 68, 68), out lblPanneNum);
+            layoutCards.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+            Guna2Panel cardTotal = CreerCarte(
+                "Total équipements",
+                "0",
+                Color.FromArgb(59, 130, 246),
+                out lblTotalNum);
+
+            Guna2Panel cardStock = CreerCarte(
+                "En stock",
+                "0",
+                Color.FromArgb(16, 185, 129),
+                out lblStockNum);
+
+            Guna2Panel cardAffecte = CreerCarte(
+                "Affectés / Prêts",
+                "0",
+                Color.FromArgb(245, 158, 11),
+                out lblAffecteNum);
+
+            Guna2Panel cardPanne = CreerCarte(
+                "Panne / Réparation",
+                "0",
+                Color.FromArgb(239, 68, 68),
+                out lblPanneNum);
 
             layoutCards.Controls.Add(cardTotal, 0, 0);
             layoutCards.Controls.Add(cardStock, 1, 0);
             layoutCards.Controls.Add(cardAffecte, 2, 0);
             layoutCards.Controls.Add(cardPanne, 3, 0);
 
-            // ==========================================
-            // 3. BOUTONS D'ACCÈS RAPIDE
-            // ==========================================
-            layoutActions = new TableLayoutPanel
+            // ================= TOOLBAR =================
+            panelToolbar = new Guna2Panel
             {
                 Dock = DockStyle.Top,
-                Height = 50,
-                ColumnCount = 4,
-                RowCount = 1,
-                Margin = new Padding(0, 0, 0, 15)
+                Height = 64,
+                FillColor = Color.White,
+                BorderRadius = 10,
+                Margin = new Padding(0, 0, 0, 10),
+                Padding = new Padding(10)
             };
-            layoutActions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
-            layoutActions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
-            layoutActions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
-            layoutActions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
 
-            Guna2Button btnNouveauMouvement = CreerBoutonAction("+ Nouveau Mouvement", Color.FromArgb(37, 99, 235));
-            btnNouveauMouvement.Click += (s, e) => OnNouveauMouvementClicked?.Invoke(this, EventArgs.Empty);
+            panelToolbar.ShadowDecoration.Enabled = true;
+            panelToolbar.ShadowDecoration.Depth = 4;
+            panelToolbar.ShadowDecoration.Color = Color.FromArgb(35, 0, 0, 0);
 
-            Guna2Button btnAjouterEquipement = CreerBoutonAction("+ Ajouter Équipement", Color.FromArgb(16, 185, 129));
-            btnAjouterEquipement.Click += (s, e) => OnAjouterEquipementClicked?.Invoke(this, EventArgs.Empty);
+            txtSearch = new Guna2TextBox
+            {
+                PlaceholderText = "Recherche : nom, id, département...",
+                Dock = DockStyle.Left,
+                Width = 290,
+                BorderRadius = 8,
+                Font = new Font("Segoe UI", 9F),
+                Margin = new Padding(0)
+            };
+            txtSearch.TextChanged += TxtSearch_TextChanged;
 
-            Guna2Button btnAjouterEmploye = CreerBoutonAction("+ Ajouter Employé", Color.FromArgb(107, 114, 128));
-            btnAjouterEmploye.Click += (s, e) => OnAjouterEmployeClicked?.Invoke(this, EventArgs.Empty);
+            flowActions = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Right,
+                Width = 560,
+                FlowDirection = FlowDirection.RightToLeft,
+                WrapContents = false,
+                Padding = new Padding(0),
+                Margin = new Padding(0)
+            };
 
-            Guna2Button btnInventaire = CreerBoutonAction("Lancer Inventaire", Color.FromArgb(139, 92, 246));
-            btnInventaire.Click += (s, e) => OnInventaireClicked?.Invoke(this, EventArgs.Empty);
+            btnNewMovement = CreerBoutonAction(
+                "+ Mouvement",
+                Color.FromArgb(59, 130, 246));
 
-            layoutActions.Controls.Add(btnNouveauMouvement, 0, 0);
-            layoutActions.Controls.Add(btnAjouterEquipement, 1, 0);
-            layoutActions.Controls.Add(btnAjouterEmploye, 2, 0);
-            layoutActions.Controls.Add(btnInventaire, 3, 0);
+            btnQuickAddEquip = CreerBoutonAction(
+                "+ Équipement",
+                Color.FromArgb(16, 185, 129));
 
-            // ==========================================
-            // 4. SECTION PIE-CHART DESSINÉE (RÉPARTITION)
-            // ==========================================
+            btnQuickAddEmp = CreerBoutonAction(
+                "+ Employé",
+                Color.FromArgb(100, 116, 139));
+
+            btnInventory = CreerBoutonAction(
+                "Inventaire",
+                Color.FromArgb(139, 92, 246));
+
+            btnNewMovement.Click += BtnNewMovement_Click;
+            btnQuickAddEquip.Click += BtnQuickAddEquip_Click;
+            btnQuickAddEmp.Click += BtnQuickAddEmp_Click;
+            btnInventory.Click += BtnInventory_Click;
+
+            flowActions.Controls.Add(btnInventory);
+            flowActions.Controls.Add(btnQuickAddEmp);
+            flowActions.Controls.Add(btnQuickAddEquip);
+            flowActions.Controls.Add(btnNewMovement);
+
+            panelToolbar.Controls.Add(flowActions);
+            panelToolbar.Controls.Add(txtSearch);
+
+            // ================= GRAPHIQUE =================
             panelChartSection = new Guna2Panel
             {
                 Dock = DockStyle.Top,
-                Height = 280,
+                Height = 285,
                 FillColor = Color.White,
                 BorderRadius = 10,
-                Margin = new Padding(0, 0, 0, 15),
-                Padding = new Padding(15)
+                Margin = new Padding(0, 0, 0, 10),
+                Padding = new Padding(12)
             };
 
-            Panel headerChartPanel = new Panel
+            panelChartSection.ShadowDecoration.Enabled = true;
+            panelChartSection.ShadowDecoration.Depth = 4;
+            panelChartSection.ShadowDecoration.Color = Color.FromArgb(35, 0, 0, 0);
+
+            Panel chartHeader = new Panel
             {
                 Dock = DockStyle.Top,
                 Height = 40
@@ -170,25 +266,26 @@ namespace VotreAppNamespace
 
             Label lblChartTitle = new Label
             {
-                Text = "Répartition des Équipements par Statut",
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(30, 41, 59),
+                Text = "Répartition des équipements par statut",
                 Dock = DockStyle.Left,
-                AutoSize = true
+                AutoSize = true,
+                Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
+                ForeColor = couleurTexte,
+                TextAlign = ContentAlignment.MiddleLeft
             };
 
             cbCategories = new Guna2ComboBox
             {
                 Dock = DockStyle.Right,
-                Width = 250,
-                BorderRadius = 6,
-                Font = new Font("Segoe UI", 9.5F),
-                DropDownStyle = ComboBoxStyle.DropDownList
+                Width = 240,
+                BorderRadius = 7,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 9F)
             };
             cbCategories.SelectedIndexChanged += CbCategories_SelectedIndexChanged;
 
-            headerChartPanel.Controls.Add(lblChartTitle);
-            headerChartPanel.Controls.Add(cbCategories);
+            chartHeader.Controls.Add(cbCategories);
+            chartHeader.Controls.Add(lblChartTitle);
 
             panelPieChartDisplay = new Panel
             {
@@ -196,229 +293,857 @@ namespace VotreAppNamespace
                 BackColor = Color.White
             };
             panelPieChartDisplay.Paint += PanelPieChartDisplay_Paint;
+            panelPieChartDisplay.Resize += (s, e) => panelPieChartDisplay.Invalidate();
 
             panelChartSection.Controls.Add(panelPieChartDisplay);
-            panelChartSection.Controls.Add(headerChartPanel);
+            panelChartSection.Controls.Add(chartHeader);
 
-            // ==========================================
-            // 5. DOUBLE GRILLE (MOUVEMENTS & EMPLOYES)
-            // ==========================================
+            // ================= TABLEAUX =================
             layoutTables = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
-                Height = 300,
+                Height = 330,
                 ColumnCount = 2,
                 RowCount = 1,
-                Margin = new Padding(0, 0, 0, 15)
+                Margin = new Padding(0, 0, 0, 10),
+                Padding = new Padding(0)
             };
+
             layoutTables.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             layoutTables.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            layoutTables.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
             gridMouvements = CreerDataGridView();
-            Guna2Panel panelMouvements = CreerConteneurGrille("Mouvements Récents (Affectations / Prêts)", gridMouvements);
-
             gridEmployes = CreerDataGridView();
-            Guna2Panel panelEmployes = CreerConteneurGrille("Équipements Affectés par Employé", gridEmployes);
+
+            PrepareEmployesGrid(gridEmployes);
+
+            Guna2Panel panelMouvements = CreerConteneurGrille(
+                "Alerte de QTE",
+                gridMouvements);
+
+            Guna2Panel panelEmployes = CreerConteneurGrille(
+                "Liste des employés",
+                gridEmployes);
 
             layoutTables.Controls.Add(panelMouvements, 0, 0);
             layoutTables.Controls.Add(panelEmployes, 1, 0);
 
-            // Assemblage global
-            this.Controls.Add(layoutTables);
-            this.Controls.Add(panelChartSection);
-            this.Controls.Add(layoutActions);
-            this.Controls.Add(layoutCards);
-            this.Controls.Add(panelHeader);
+            // ================= FOOTER =================
+            panelFooter = new Guna2Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 34,
+                FillColor = Color.White,
+                BorderRadius = 8,
+                Padding = new Padding(10, 2, 10, 2)
+            };
+
+            lblConnectionStatus = new Label
+            {
+                Text = "Connexion DB : ...",
+                Dock = DockStyle.Left,
+                Width = 180,
+                Font = new Font("Segoe UI", 8.5F),
+                ForeColor = Color.DimGray,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            lblDateTime = new Label
+            {
+                Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                Dock = DockStyle.Right,
+                Width = 180,
+                Font = new Font("Segoe UI", 8.5F),
+                ForeColor = Color.DimGray,
+                TextAlign = ContentAlignment.MiddleRight
+            };
+
+            panelFooter.Controls.Add(lblDateTime);
+            panelFooter.Controls.Add(lblConnectionStatus);
+
+            timerClock = new System.Windows.Forms.Timer
+            {
+                Interval = 1000
+            };
+            timerClock.Tick += TimerClock_Tick;
+
+            // Important : ordre des Controls
+            Controls.Add(panelFooter);
+            Controls.Add(layoutTables);
+            Controls.Add(panelChartSection);
+            Controls.Add(panelToolbar);
+            Controls.Add(layoutCards);
+            Controls.Add(panelHeader);
+
+            //gridEmployes.CellContentClick += GridEmployes_CellContentClick;
+            gridEmployes.CellMouseEnter += GridEmployes_CellMouseEnter;
+            gridEmployes.CellMouseLeave += GridEmployes_CellMouseLeave;
+
+            ResumeLayout(false);
+
+
         }
 
-        // --- ANIMATION HEADER (Marquee) ---
-        private void DémarrerAnimationHeader()
+        // ================= ACTIONS =================
+
+        private void BtnNewMovement_Click(object sender, EventArgs e)
         {
+            OnNouveauMouvementClicked?.Invoke(this, EventArgs.Empty);
+
+            using (FrmAjouterMouvement frm = new FrmAjouterMouvement(_mainForm))
+            {
+                if (frm.ShowDialog(this) == DialogResult.OK)
+                    RafraichirDashboard();
+            }
+        }
+
+        private void BtnQuickAddEquip_Click(object sender, EventArgs e)
+        {
+           OnAjouterEquipementClicked?.Invoke(this, EventArgs.Empty);
+
+            using (FrmAjouterArticle frm = new FrmAjouterArticle(_mainForm))
+            {
+                if (frm.ShowDialog(this) == DialogResult.OK)
+                    RafraichirDashboard();
+            }
+        }
+
+        private void BtnQuickAddEmp_Click(object sender, EventArgs e)
+        {
+            OnAjouterEmployeClicked?.Invoke(this, EventArgs.Empty);
+
+            using (FrmAjouterEmploye frm = new FrmAjouterEmploye())
+            {
+                if (frm.ShowDialog(this) == DialogResult.OK)
+                    RafraichirDashboard();
+            }
+        }
+
+        private void BtnInventory_Click(object sender, EventArgs e)
+        {
+           OnInventaireClicked?.Invoke(this, EventArgs.Empty);
+
+            using (FrmAjouterInventaire frm = new FrmAjouterInventaire(_mainForm))
+            {
+                if (frm.ShowDialog(this) == DialogResult.OK)
+                    RafraichirDashboard();
+            }
+        }
+
+        public void RafraichirDashboard()
+        {
+            ChargerStatistiques();
+            ChargerCategoriesCombo();
+            ChargerPieChartStatut(null);
+            ChargerQTEAlert();
+            ChargerResumeEmployes();
+            UpdateDbConnectionStatus();
+        }
+
+        // ================= HEADER =================
+
+        private void StartHeaderAnimation()
+        {
+            panelHeader.SizeChanged += PanelHeader_SizeChanged;
+
             posXText = panelHeader.Width;
             lblTitreAnime.Left = posXText;
-            timerHeaderAnimation.Start();
 
-            panelHeader.SizeChanged += (s, e) =>
+            timerHeaderAnimation.Start();
+        }
+
+        private void PanelHeader_SizeChanged(object sender, EventArgs e)
+        {
+            if (lblTitreAnime.Left > panelHeader.Width)
             {
-                if (lblTitreAnime.Left > panelHeader.Width)
-                    posXText = panelHeader.Width;
-            };
+                posXText = panelHeader.Width;
+                lblTitreAnime.Left = posXText;
+            }
         }
 
         private void TimerHeaderAnimation_Tick(object sender, EventArgs e)
         {
             posXText -= 2;
+
             if (posXText + lblTitreAnime.Width < 0)
-            {
                 posXText = panelHeader.Width;
-            }
+
             lblTitreAnime.Left = posXText;
         }
 
-        // --- CHARGEMENT DU PIE CHART PAR DESSIN AVEC COULEURS ---
+        // ================= HORLOGE =================
+
+        private void StartClock()
+        {
+            timerClock.Start();
+        }
+
+        private void TimerClock_Tick(object sender, EventArgs e)
+        {
+            lblDateTime.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        }
+
+        // ================= KPI =================
+
+        public void ChargerStatistiques()
+        {
+            try
+            {
+                string sql = @"
+                    SELECT
+                        COUNT(*) AS Total,
+                        SUM(CASE
+                            WHEN LOWER(COALESCE(statut, '')) = 'en stock'
+                            THEN 1 ELSE 0
+                        END) AS EnStock,
+
+                        SUM(CASE
+                            WHEN LOWER(COALESCE(statut, '')) IN
+                            ('affecté', 'affecte', 'en prêt', 'en pret')
+                            THEN 1 ELSE 0
+                        END) AS Affectes,
+
+                        SUM(CASE
+                            WHEN LOWER(COALESCE(statut, '')) IN
+                            ('en panne', 'en réparation', 'en reparation')
+                            THEN 1 ELSE 0
+                        END) AS EnPanne
+                    FROM Equipement";
+
+                DataTable dt = DatabaseHelper.ExecuteQuery(sql);
+
+                if (dt == null || dt.Rows.Count == 0)
+                    return;
+
+                DataRow row = dt.Rows[0];
+
+                lblTotalNum.Text = row["Total"] == DBNull.Value ? "0" : row["Total"].ToString();
+                lblStockNum.Text = row["EnStock"] == DBNull.Value ? "0" : row["EnStock"].ToString();
+                lblAffecteNum.Text = row["Affectes"] == DBNull.Value ? "0" : row["Affectes"].ToString();
+                lblPanneNum.Text = row["EnPanne"] == DBNull.Value ? "0" : row["EnPanne"].ToString();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Erreur statistiques : " + ex.Message);
+            }
+        }
+
+        // ================= QTE ALERTe =================
+
+        public void ChargerQTEAlert()
+        {
+            try
+            {
+                string sql = @"SELECT 
+                                md.id AS 'ID', 
+                                md.reference AS 'Référence', 
+                                md.designation AS 'Désignation', 
+                                COALESCE(c.designation, '—') AS 'Catégorie', 
+                                COALESCE(mq.designation, '—') AS 'Marque', 
+                                md.qte_alerte AS 'QTE alerte',
+                                COUNT(e.id) AS 'Équipements totaux',
+                                COUNT(CASE WHEN e.statut = 'En stock' THEN 1 END) AS 'En stock',
+                                COUNT(CASE WHEN e.statut = 'En prêt' THEN 1 END) AS 'En prêt'
+                            FROM Modele md
+                            LEFT JOIN Categorie c ON md.categorie_id = c.id
+                            LEFT JOIN Marque mq ON md.marque_id = mq.id
+                            LEFT JOIN Equipement e ON e.modele_id = md.id
+                            GROUP BY md.id, md.reference, md.designation, c.designation, mq.designation, md.qte_alerte
+                            HAVING COUNT(CASE WHEN e.statut = 'En stock' THEN 1 END) <= md.qte_alerte
+                            ORDER BY md.id DESC";
+
+                gridMouvements.DataSource = DatabaseHelper.ExecuteQuery(sql);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Erreur Alert de table de QTE d'alerte : " + ex.Message);
+            }
+        }
+
+        // ================= EMPLOYÉS =================
+
+        public void ChargerResumeEmployes()
+        {
+            try
+            {
+                string sql = @"
+                    SELECT
+                        e.id AS id,
+                        e.matricule AS 'Matricule',
+                        (e.nom || ' ' || e.prenom) AS 'Employé',
+                        COALESCE(e.function, 'Sans fonction') AS 'Fonction',
+                        COALESCE(e.departement, 'Sans service') AS 'Département',
+                        COALESCE(COUNT(lm.equipement_id), 0) AS 'Nb équipements'
+                    FROM Employe e
+                    LEFT JOIN Mouvement m
+                        ON m.employe_id = e.id
+                        AND m.type_mouvement IN ('Affectation', 'Prêt')
+                    LEFT JOIN Ligne_mouvement lm
+                        ON lm.mouvement_id = m.id
+                        AND lm.est_sortie = 1
+                    GROUP BY e.id
+                    ORDER BY COUNT(lm.equipement_id) DESC";
+
+                DataTable dt = DatabaseHelper.ExecuteQuery(sql);
+
+                if (dt != null)
+                {
+                    gridEmployes.DataSource = null;
+                    gridEmployes.AutoGenerateColumns = true;
+                    gridEmployes.DataSource = dt;
+                    if (gridEmployes.Columns.Contains("Image"))
+                        gridEmployes.Columns.Remove("Image");
+
+                    if (gridEmployes.Columns.Contains("Photo"))
+                        gridEmployes.Columns.Remove("Photo");
+
+                    // 2. Définir l'ordre d'affichage exact (DisplayIndex)
+                    int index = 0;
+                    foreach (DataGridViewColumn col in gridEmployes.Columns)
+                    {
+                        if (col.Name != "colModifier" && col.Name != "colSupprimer")
+                        {
+                            col.DisplayIndex = index++;
+                        }
+                    }
+
+                    // 3. Forcer les boutons à se placer TOUT À LA FIN (à droite)
+                    if (gridEmployes.Columns.Contains("colModifier"))
+                        gridEmployes.Columns["colModifier"].DisplayIndex = index++;
+
+                    if (gridEmployes.Columns.Contains("colSupprimer"))
+                        gridEmployes.Columns["colSupprimer"].DisplayIndex = index++;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Erreur employés : " + ex.Message);
+            }
+        }
+
+        // ================= CATÉGORIES =================
+
         private void ChargerCategoriesCombo()
         {
-            string sql = "SELECT id, designation FROM Categorie ORDER BY designation";
-            DataTable dt = DatabaseHelper.ExecuteQuery(sql);
-
-            DataTable dtCombo = new DataTable();
-            dtCombo.Columns.Add("id", typeof(int));
-            dtCombo.Columns.Add("designation", typeof(string));
-
-            dtCombo.Rows.Add(-1, "-- Toutes les catégories --");
-            foreach (DataRow dr in dt.Rows)
+            try
             {
-                dtCombo.Rows.Add(dr["id"], dr["designation"]);
-            }
+                string sql = "SELECT id, designation FROM Categorie ORDER BY designation";
+                DataTable dt = DatabaseHelper.ExecuteQuery(sql);
 
-            cbCategories.DataSource = dtCombo;
-            cbCategories.DisplayMember = "designation";
-            cbCategories.ValueMember = "id";
-            cbCategories.SelectedIndex = 0;
+                DataTable dtCombo = new DataTable();
+                dtCombo.Columns.Add("id", typeof(int));
+                dtCombo.Columns.Add("designation", typeof(string));
+
+                dtCombo.Rows.Add(-1, "-- Toutes les catégories --");
+
+                if (dt != null)
+                {
+                    foreach (DataRow row in dt.Rows)
+                        dtCombo.Rows.Add(row["id"], row["designation"]);
+                }
+
+                cbCategories.SelectedIndexChanged -= CbCategories_SelectedIndexChanged;
+
+                cbCategories.DataSource = dtCombo;
+                cbCategories.DisplayMember = "designation";
+                cbCategories.ValueMember = "id";
+                cbCategories.SelectedIndex = 0;
+
+                cbCategories.SelectedIndexChanged += CbCategories_SelectedIndexChanged;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Erreur catégories : " + ex.Message);
+            }
         }
 
         private void CbCategories_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (cbCategories.SelectedValue != null && int.TryParse(cbCategories.SelectedValue.ToString(), out int catId))
+            if (cbCategories.SelectedValue == null)
+                return;
+
+            int categorieId;
+
+            if (int.TryParse(cbCategories.SelectedValue.ToString(), out categorieId))
             {
-                ChargerPieChartStatut(catId == -1 ? (int?)null : catId);
+                ChargerPieChartStatut(categorieId == -1 ? (int?)null : categorieId);
             }
         }
 
-        
+        // ================= GRAPHIQUE =================
+
+        private void ChargerPieChartStatut(int? categorieId)
+        {
+            try
+            {
+                string sql = @"
+                    SELECT
+                        COALESCE(e.statut, 'Non défini') AS Statut,
+                        COUNT(e.id) AS Total
+                    FROM Equipement e
+                    INNER JOIN Modele m ON e.modele_id = m.id
+                    WHERE (@CategorieId IS NULL OR m.categorie_id = @CategorieId)
+                    GROUP BY e.statut
+                    ORDER BY Total DESC";
+
+                Dictionary<string, object> parameters = new Dictionary<string, object>
+                {
+                    { "@CategorieId", categorieId.HasValue ? (object)categorieId.Value : DBNull.Value }
+                };
+
+                dtChartData = DatabaseHelper.ExecuteQueryWithParams(sql, parameters);
+                panelPieChartDisplay.Invalidate();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Erreur graphique : " + ex.Message);
+            }
+        }
+
         private void PanelPieChartDisplay_Paint(object sender, PaintEventArgs e)
         {
-            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            Graphics g = e.Graphics;
+
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.Clear(panelPieChartDisplay.BackColor);
 
             if (dtChartData == null || dtChartData.Rows.Count == 0)
             {
                 using (Font font = new Font("Segoe UI", 10F, FontStyle.Italic))
-                using (SolidBrush brush = new SolidBrush(Color.Gray))
+                using (Brush brush = new SolidBrush(Color.Gray))
                 {
-                    e.Graphics.DrawString("Aucun équipement trouvé pour cette catégorie.", font, brush, new PointF(20, 50));
+                    g.DrawString(
+                        "Aucune donnée disponible.",
+                        font,
+                        brush,
+                        new PointF(20, 40));
                 }
+
                 return;
             }
 
             int totalGlobal = 0;
-            foreach (DataRow r in dtChartData.Rows)
+
+            foreach (DataRow row in dtChartData.Rows)
             {
-                totalGlobal += Convert.ToInt32(r["Total"]);
+                if (row["Total"] != DBNull.Value)
+                    totalGlobal += Convert.ToInt32(row["Total"]);
             }
 
-            if (totalGlobal == 0) return;
+            if (totalGlobal <= 0)
+                return;
 
-            Color[] palette = new Color[]
+            Color[] palette =
             {
-                Color.FromArgb(16, 185, 129), // Vert
-                Color.FromArgb(245, 158, 11), // Orange
-                Color.FromArgb(239, 68, 68),  // Rouge
-                Color.FromArgb(59, 130, 246), // Bleu
-                Color.FromArgb(107, 114, 128) // Gris
+                Color.FromArgb(16, 185, 129),
+                Color.FromArgb(59, 130, 246),
+                Color.FromArgb(245, 158, 11),
+                Color.FromArgb(239, 68, 68),
+                Color.FromArgb(139, 92, 246),
+                Color.FromArgb(100, 116, 139)
             };
 
-            float startAngle = 0;
-            int rectSize = Math.Min(panelPieChartDisplay.Height - 40, 200);
-            Rectangle chartRect = new Rectangle(20, (panelPieChartDisplay.Height - rectSize) / 2, rectSize, rectSize);
+            int espaceDisponible = Math.Min(
+                panelPieChartDisplay.Width / 2,
+                panelPieChartDisplay.Height - 20);
 
-            int legendX = rectSize + 60;
-            int legendY = 30;
+            int tailleGraphique = Math.Max(120, Math.Min(espaceDisponible, 210));
+
+            Rectangle chartRect = new Rectangle(
+                20,
+                (panelPieChartDisplay.Height - tailleGraphique) / 2,
+                tailleGraphique,
+                tailleGraphique);
+
+            int legendX = chartRect.Right + 30;
+            int legendY = Math.Max(15, (panelPieChartDisplay.Height - (dtChartData.Rows.Count * 30)) / 2);
+
+            float startAngle = -90F;
 
             for (int i = 0; i < dtChartData.Rows.Count; i++)
             {
                 DataRow row = dtChartData.Rows[i];
-                string statut = row["Statut"].ToString();
+
+                string statut = row["Statut"]?.ToString() ?? "Non défini";
                 int count = Convert.ToInt32(row["Total"]);
 
-                float sweepAngle = (count / (float)totalGlobal) * 360f;
-                Color itemColor = palette[i % palette.Length];
+                float sweepAngle = (count / (float)totalGlobal) * 360F;
+                Color couleur = palette[i % palette.Length];
 
-                using (SolidBrush brush = new SolidBrush(itemColor))
+                using (Brush brush = new SolidBrush(couleur))
                 {
-                    e.Graphics.FillPie(brush, chartRect, startAngle, sweepAngle);
-
-                    // Dessin de la légende
-                    e.Graphics.FillRectangle(brush, legendX, legendY + (i * 30), 16, 16);
+                    g.FillPie(brush, chartRect, startAngle, sweepAngle);
+                    g.FillRectangle(brush, legendX, legendY + (i * 30), 16, 16);
                 }
 
-                using (Font font = new Font("Segoe UI", 9.5F, FontStyle.Regular))
-                using (SolidBrush textBrush = new SolidBrush(Color.FromArgb(30, 41, 59)))
+                double pourcentage = Math.Round((count / (double)totalGlobal) * 100, 1);
+
+                using (Font font = new Font("Segoe UI", 9F))
+                using (Brush brushText = new SolidBrush(couleurTexte))
                 {
-                    double pct = Math.Round((count / (double)totalGlobal) * 100, 1);
-                    string legendText = $"{statut} : {count} ({pct}%)";
-                    e.Graphics.DrawString(legendText, font, textBrush, legendX + 25, legendY + (i * 30) - 2);
+                    string texte = statut + " : " + count + " (" + pourcentage + "%)";
+
+                    g.DrawString(
+                        texte,
+                        font,
+                        brushText,
+                        legendX + 24,
+                        legendY + (i * 30) - 2);
                 }
 
                 startAngle += sweepAngle;
             }
         }
 
-        // --- METHODES DE DECORATION ET REQUETES ---
-        private Guna2Panel CreerCarte(string titre, string valeurInitiale, Color couleurAccent, out Label lblValeur)
+        // ================= RECHERCHE =================
+
+        private void TxtSearch_TextChanged(object sender, EventArgs e)
+        {
+            string q = txtSearch.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(q))
+            {
+                ChargerResumeEmployes();
+                return;
+            }
+
+            try
+            {
+                Dictionary<string, object> parameters = new Dictionary<string, object>
+                {
+                    { "@q", "%" + q + "%" }
+                };
+
+                string sqlEmp = @"
+                    SELECT
+                        e.id AS id,
+                        (e.nom || ' ' || e.prenom) AS 'Employé',
+                        COALESCE(e.function, 'Sans fonction') AS 'Fonction',
+                        COALESCE(e.departement, 'Sans service') AS 'Département',
+                        COALESCE(COUNT(lm.equipement_id), 0) AS 'Nb équipements'
+                    FROM Employe e
+                    LEFT JOIN Mouvement m
+                        ON m.employe_id = e.id
+                        AND m.type_mouvement IN ('Affectation', 'Prêt')
+                    LEFT JOIN Ligne_mouvement lm
+                        ON lm.mouvement_id = m.id
+                        AND lm.est_sortie = 1
+                    WHERE
+                        (e.nom || ' ' || e.prenom) LIKE @q
+                        OR e.departement LIKE @q
+                    GROUP BY e.id
+                    ORDER BY e.nom, e.prenom
+                    LIMIT 200";
+
+                gridEmployes.DataSource = null;
+                gridEmployes.AutoGenerateColumns = true;
+                gridEmployes.DataSource =
+                    DatabaseHelper.ExecuteQueryWithParams(sqlEmp, parameters);
+
+
+                if (gridEmployes.Columns.Contains("Image"))
+                    gridEmployes.Columns.Remove("Image");
+
+                if (gridEmployes.Columns.Contains("Photo"))
+                    gridEmployes.Columns.Remove("Photo");
+
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Erreur recherche : " + ex.Message);
+            }
+        }
+        
+        // ================= GRILLE EMPLOYÉS =================
+
+        private void PrepareEmployesGrid(Guna2DataGridView dgv)
+        {
+            dgv.AutoGenerateColumns = true;
+            dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgv.MultiSelect = false;
+
+            dgv.Columns.Clear();
+
+            DataGridViewButtonColumn colModifier = new DataGridViewButtonColumn
+            {
+                Name = "colModifier",
+                HeaderText = "Modifier",
+                Width = 70,
+                FlatStyle = FlatStyle.Flat,
+                UseColumnTextForButtonValue = false
+            };
+
+            DataGridViewButtonColumn colSupprimer = new DataGridViewButtonColumn
+            {
+                Name = "colSupprimer",
+                HeaderText = "Supprimer",
+                Width = 80,
+                FlatStyle = FlatStyle.Flat,
+                UseColumnTextForButtonValue = false
+            };
+
+            dgv.Columns.Add(colModifier);
+            dgv.Columns.Add(colSupprimer);
+
+            dgv.CellPainting += EmployesGrid_CellPainting;
+            dgv.CellClick += EmployesGrid_CellClick;
+
+            dgv.CellMouseMove += (s, e) =>
+            {
+                if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+                    dgv.InvalidateCell(e.ColumnIndex, e.RowIndex);
+            };
+
+            dgv.CellMouseLeave += (s, e) =>
+            {
+                if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+                    dgv.InvalidateCell(e.ColumnIndex, e.RowIndex);
+            };
+        }
+        private void EmployesGrid_CellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.Graphics == null) return;
+
+            Guna2DataGridView? dgv = sender as Guna2DataGridView;
+            if (dgv == null) return;
+
+            Point mousePos = dgv.PointToClient(Cursor.Position);
+            bool isHovered = e.CellBounds.Contains(mousePos);
+            bool isClicked = isHovered && (Control.MouseButtons == MouseButtons.Left);
+
+            // Bouton Modifier
+            if (e.ColumnIndex == dgv.Columns["colModifier"]?.Index)
+            {
+                DessinerBouton(e, isHovered, isClicked,
+                    Color.FromArgb(240, 253, 244),  // fond
+                    Color.FromArgb(220, 252, 231),  // hover
+                    Color.FromArgb(187, 247, 208),  // click
+                    Color.FromArgb(134, 239, 172),  // bordure
+                    "pencil_icon.png");             // icône
+            }
+            // Bouton Supprimer
+            else if (e.ColumnIndex == dgv.Columns["colSupprimer"]?.Index)
+            {
+                DessinerBouton(e, isHovered, isClicked,
+                    Color.FromArgb(254, 242, 242),
+                    Color.FromArgb(254, 226, 226),
+                    Color.FromArgb(254, 202, 202),
+                    Color.FromArgb(252, 165, 165),
+                    "delet_icon.png");
+            }
+        }
+
+        private static void DessinerBouton(DataGridViewCellPaintingEventArgs e, bool isHovered, bool isClicked, Color bg, Color bgHover, Color bgClick, Color border, string iconFile)
+        {
+            if (e.Graphics == null) return;
+
+            e.PaintBackground(e.CellBounds, true);
+
+            Color cur = isClicked ? bgClick : (isHovered ? bgHover : bg);
+
+            Rectangle rect = new Rectangle(
+                e.CellBounds.Left + 4,
+                e.CellBounds.Top + 4,
+                e.CellBounds.Width - 8,
+                e.CellBounds.Height - 8);
+
+            using (SolidBrush brush = new SolidBrush(cur))
+                e.Graphics.FillRectangle(brush, rect);
+
+            using (Pen pen = new Pen(border))
+                e.Graphics.DrawRectangle(pen, rect);
+
+            // Même chemin que dans la fonction qui fonctionne
+            string path = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "image", iconFile);
+
+            if (!System.IO.File.Exists(path))
+                path = System.IO.Path.Combine("image", iconFile);
+
+            if (System.IO.File.Exists(path))
+            {
+                using (Image img = Image.FromFile(path))
+                {
+                    int size = 18;
+                    Rectangle iconRect = new Rectangle(
+                        rect.Left + (rect.Width - size) / 2,
+                        rect.Top + (rect.Height - size) / 2,
+                        size, size);
+                    e.Graphics.DrawImage(img, iconRect);
+                }
+            }
+
+            e.Handled = true;
+        }
+
+        private void EmployesGrid_CellClick(object? sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+
+            Guna2DataGridView dgv = sender as Guna2DataGridView;
+            if (dgv == null || !dgv.Columns.Contains("id")) return;
+
+            object valeurId = dgv.Rows[e.RowIndex].Cells["id"].Value;
+            if (valeurId == null || valeurId == DBNull.Value) return;
+
+            int idEmploye = Convert.ToInt32(valeurId);
+            string colName = dgv.Columns[e.ColumnIndex].Name;
+
+            if (colName == "colModifier")
+            {
+                OnEditEmployeRequested?.Invoke(this, idEmploye);
+            }
+            else if (colName == "colSupprimer")
+            {
+                string nomEmploye = dgv.Rows[e.RowIndex].Cells["Employé"].Value?.ToString() ?? "cet employé";
+
+                DialogResult confirm = MessageBox.Show(
+                    $"Supprimer définitivement {nomEmploye} ?",
+                    "Confirmer la suppression",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+
+                if (confirm == DialogResult.Yes)
+                {
+                    OnDeleteEmployeRequested?.Invoke(this, idEmploye);
+                }
+            }
+        }
+        
+        /*private void GridEmployes_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+
+            DataGridView dgv = sender as DataGridView;
+            if (dgv == null || !dgv.Columns.Contains("id")) return;
+
+            object valeurId = dgv.Rows[e.RowIndex].Cells["id"].Value;
+            if (valeurId == null || valeurId == DBNull.Value) return;
+
+            int idEmploye = Convert.ToInt32(valeurId);
+            string colonne = dgv.Columns[e.ColumnIndex].Name;
+
+            if (colonne == "Edit")
+            {
+                OnEditEmployeRequested?.Invoke(this, idEmploye);
+            }
+            else if (colonne == "Delete")
+            {
+                DialogResult reponse = MessageBox.Show(
+                    "Voulez-vous supprimer cet employé ?",
+                    "Confirmation",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+
+                if (reponse == DialogResult.Yes)
+                {
+                    OnDeleteEmployeRequested?.Invoke(this, idEmploye);
+                }
+            }
+        }
+       
+        */
+        
+        private void GridEmployes_CellMouseEnter(object sender, DataGridViewCellEventArgs e)
+        {
+            DataGridView dgv = sender as DataGridView;
+
+            if (dgv == null || e.RowIndex < 0)
+                return;
+
+            dgv.Rows[e.RowIndex].DefaultCellStyle.BackColor =
+                Color.FromArgb(241, 245, 249);
+        }
+
+        private void GridEmployes_CellMouseLeave(object sender, DataGridViewCellEventArgs e)
+        {
+            DataGridView dgv = sender as DataGridView;
+
+            if (dgv == null || e.RowIndex < 0)
+                return;
+
+            dgv.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.White;
+        }
+
+        // ================= AIDES UI =================
+
+        private Guna2Panel CreerCarte(
+            string titre,
+            string valeurInitiale,
+            Color couleurAccent,
+            out Label lblValeur)
         {
             Guna2Panel card = new Guna2Panel
             {
                 Dock = DockStyle.Fill,
-                BorderRadius = 10,
                 FillColor = Color.White,
-                Margin = new Padding(5, 0, 5, 0),
-                Padding = new Padding(12, 10, 12, 10)
+                BorderRadius = 12,
+                Margin = new Padding(5),
+                Padding = new Padding(0)
             };
 
-            Guna2Panel accentBar = new Guna2Panel
+            card.ShadowDecoration.Enabled = true;
+            card.ShadowDecoration.Depth = 4;
+            card.ShadowDecoration.Color = Color.FromArgb(30, 0, 0, 0);
+
+            Guna2Panel accent = new Guna2Panel
             {
-                Width = 5,
                 Dock = DockStyle.Left,
+                Width = 6,
                 FillColor = couleurAccent,
-                BorderRadius = 2
+                BorderRadius = 3
             };
 
-            Panel contentPanel = new Panel
+            Panel contenu = new Panel
             {
                 Dock = DockStyle.Fill,
-                Padding = new Padding(10, 0, 0, 0)
+                Padding = new Padding(14, 10, 12, 10)
             };
 
-            Label lblTitreCard = new Label
+            Label lblTitre = new Label
             {
                 Text = titre,
-                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
-                ForeColor = Color.Gray,
                 Dock = DockStyle.Top,
-                AutoSize = true
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(100, 116, 139)
             };
 
             lblValeur = new Label
             {
                 Text = valeurInitiale,
-                Font = new Font("Segoe UI", 18F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(15, 23, 42),
                 Dock = DockStyle.Bottom,
-                AutoSize = true
+                AutoSize = true,
+                Font = new Font("Segoe UI", 21F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(15, 23, 42)
             };
 
-            contentPanel.Controls.Add(lblValeur);
-            contentPanel.Controls.Add(lblTitreCard);
+            contenu.Controls.Add(lblValeur);
+            contenu.Controls.Add(lblTitre);
 
-            card.Controls.Add(contentPanel);
-            card.Controls.Add(accentBar);
+            card.Controls.Add(contenu);
+            card.Controls.Add(accent);
 
             return card;
         }
 
         private Guna2Button CreerBoutonAction(string texte, Color couleurFond)
         {
-            return new Guna2Button
+            Guna2Button bouton = new Guna2Button
             {
                 Text = texte,
                 FillColor = couleurFond,
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                Height = 38,
+                Width = 125,
                 BorderRadius = 8,
-                Dock = DockStyle.Fill,
-                Margin = new Padding(5, 0, 5, 0),
+                Margin = new Padding(4, 3, 4, 3),
                 Cursor = Cursors.Hand
             };
+
+            bouton.HoverState.FillColor = ControlPaint.Light(couleurFond);
+            return bouton;
         }
 
         private Guna2DataGridView CreerDataGridView()
@@ -426,46 +1151,80 @@ namespace VotreAppNamespace
             Guna2DataGridView dgv = new Guna2DataGridView
             {
                 Dock = DockStyle.Fill,
-                ReadOnly = true,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                BackgroundColor = Color.White,
-                BorderStyle = BorderStyle.None,
+                ReadOnly = true,
+                AutoGenerateColumns = true,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 RowHeadersVisible = false,
-                EnableHeadersVisualStyles = false
+                CellBorderStyle = DataGridViewCellBorderStyle.None,
+                MultiSelect = false
             };
 
-            dgv.ThemeStyle.HeaderStyle.BackColor = Color.FromArgb(30, 41, 59);
-            dgv.ThemeStyle.HeaderStyle.ForeColor = Color.White;
-            dgv.ThemeStyle.HeaderStyle.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            dgv.RowTemplate.Height = 38;
 
-            dgv.ThemeStyle.RowsStyle.Font = new Font("Segoe UI", 9F);
-            dgv.ThemeStyle.RowsStyle.SelectionBackColor = Color.FromArgb(239, 246, 255);
-            dgv.ThemeStyle.RowsStyle.SelectionForeColor = Color.FromArgb(30, 41, 59);
+            dgv.AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle
+            {
+                BackColor = Color.White,
+                ForeColor = Color.Black,
+                SelectionBackColor = Color.FromArgb(239, 246, 255),
+                SelectionForeColor = Color.Black
+            };
+
+            dgv.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+            {
+                Alignment = DataGridViewContentAlignment.MiddleLeft,
+                BackColor = Color.White,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(37, 99, 235),
+                SelectionBackColor = Color.White,
+                SelectionForeColor = Color.FromArgb(37, 99, 235)
+            };
+            dgv.ColumnHeadersHeight = 40;
+
+            dgv.DefaultCellStyle = new DataGridViewCellStyle
+            {
+                Alignment = DataGridViewContentAlignment.MiddleLeft,
+                BackColor = Color.White,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.Black,
+                SelectionBackColor = Color.FromArgb(239, 246, 255),
+                SelectionForeColor = Color.Black
+            };
+
+            // Événements pour le survol (déjà gérés dans PrepareEmployesGrid pour gridEmployes)
+            dgv.CellMouseMove += (s, e) => dgv.InvalidateCell(e.ColumnIndex, e.RowIndex);
+            dgv.CellMouseLeave += (s, e) => dgv.InvalidateCell(e.ColumnIndex, e.RowIndex);
 
             return dgv;
         }
 
-        private Guna2Panel CreerConteneurGrille(string titreSection, DataGridView dgv)
+        private Guna2Panel CreerConteneurGrille(string titre, DataGridView dgv)
         {
             Guna2Panel panel = new Guna2Panel
             {
                 Dock = DockStyle.Fill,
-                BorderRadius = 10,
                 FillColor = Color.White,
+                BorderRadius = 12,
                 Margin = new Padding(5),
-                Padding = new Padding(12)
+                Padding = new Padding(10)
             };
+
+            panel.ShadowDecoration.Enabled = true;
+            panel.ShadowDecoration.Depth = 4;
+            panel.ShadowDecoration.Color = Color.FromArgb(30, 0, 0, 0);
 
             Label lblTitre = new Label
             {
-                Text = titreSection,
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(30, 41, 59),
+                Text = titre,
                 Dock = DockStyle.Top,
-                Height = 30
+                Height = 34,
+                Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
+                ForeColor = Color.Red,
+                TextAlign = ContentAlignment.MiddleLeft
             };
+
+            dgv.Dock = DockStyle.Fill;
 
             panel.Controls.Add(dgv);
             panel.Controls.Add(lblTitre);
@@ -473,79 +1232,33 @@ namespace VotreAppNamespace
             return panel;
         }
 
-        public void ChargerStatistiques()
-        {
-            string sql = @"
-                SELECT 
-                    COUNT(*) AS Total,
-                    COUNT(CASE WHEN statut = 'En stock' THEN 1 END) AS EnStock,
-                    COUNT(CASE WHEN statut IN ('Affecté', 'En prêt') THEN 1 END) AS Affectes,
-                    COUNT(CASE WHEN statut IN ('En panne', 'En réparation') THEN 1 END) AS EnPanne
-                FROM Equipement";
+        // ================= CONNEXION DB =================
 
-            DataTable dt = DatabaseHelper.ExecuteQuery(sql);
-            if (dt.Rows.Count > 0)
+        public void UpdateDbConnectionStatus()
+        {
+            try
             {
-                DataRow dr = dt.Rows[0];
-                lblTotalNum.Text = dr["Total"].ToString();
-                lblStockNum.Text = dr["EnStock"].ToString();
-                lblAffecteNum.Text = dr["Affectes"].ToString();
-                lblPanneNum.Text = dr["EnPanne"].ToString();
+                DatabaseHelper.ExecuteQuery("SELECT 1");
+
+                lblConnectionStatus.Text = "● Connexion DB : OK";
+                lblConnectionStatus.ForeColor = Color.FromArgb(16, 185, 129);
+            }
+            catch
+            {
+                lblConnectionStatus.Text = "● Connexion DB : Échec";
+                lblConnectionStatus.ForeColor = Color.FromArgb(239, 68, 68);
             }
         }
 
-        public void ChargerMouvementsRecents()
+        protected override void OnFormClosed(FormClosedEventArgs e)
         {
-            string sql = @"
-                SELECT 
-                    m.code_mouvement AS 'Code',
-                    m.type_mouvement AS 'Type',
-                    COALESCE(e.nom || ' ' || e.prenom, '—') AS 'Bénéficiaire',
-                    m.date_mouvement AS 'Date'
-                FROM Mouvement m
-                LEFT JOIN Employe e ON m.employe_id = e.id
-                ORDER BY m.id DESC
-                LIMIT 8";
+            timerHeaderAnimation?.Stop();
+            timerClock?.Stop();
 
-            gridMouvements.DataSource = DatabaseHelper.ExecuteQuery(sql);
-        }
+            timerHeaderAnimation?.Dispose();
+            timerClock?.Dispose();
 
-        public void ChargerResumeEmployes()
-        {
-            string sql = @"
-                SELECT 
-                    e.matricule AS 'Matricule',
-                    e.nom || ' ' || e.prenom AS 'Employé',
-                    e.departement AS 'Département',
-                    COUNT(lm.equipement_id) AS 'Nb Équipements'
-                FROM Employe e
-                LEFT JOIN Mouvement m ON m.employe_id = e.id AND m.type_mouvement IN ('Affectation', 'Prêt')
-                LEFT JOIN Ligne_mouvement lm ON lm.mouvement_id = m.id AND lm.est_sortie = 1
-                GROUP BY e.id
-                ORDER BY 'Nb Équipements' DESC
-                LIMIT 8";
-
-            gridEmployes.DataSource = DatabaseHelper.ExecuteQuery(sql);
-        }
-
-        private void ChargerPieChartStatut(int? categorieId)
-        {
-            string sql = @"
-        SELECT 
-            e.statut AS Statut, 
-            COUNT(e.id) AS Total 
-        FROM Equipement e
-        JOIN Modele m ON e.modele_id = m.id
-        WHERE (@CategorieId IS NULL OR m.categorie_id = @CategorieId)
-        GROUP BY e.statut";
-
-            var parameters = new System.Collections.Generic.Dictionary<string, object>
-    {
-        { "@CategorieId", (object)categorieId ?? DBNull.Value }
-    };
-
-            dtChartData = DatabaseHelper.ExecuteQueryWithParams(sql, parameters);
-            panelPieChartDisplay.Invalidate(); // Redessiner le graphique
+            base.OnFormClosed(e);
         }
     }
 }

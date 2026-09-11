@@ -638,6 +638,7 @@
             TextBoxfiltrage.ShadowDecoration.CustomizableEdges = customizableEdges31;
             TextBoxfiltrage.Size = new Size(346, 36);
             TextBoxfiltrage.TabIndex = 0;
+            TextBoxfiltrage.TextChanged += TextBoxfiltrage_TextChanged;
             // 
             // table_equipements
             // 

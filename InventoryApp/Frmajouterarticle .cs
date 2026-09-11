@@ -168,14 +168,12 @@ namespace InventoryApp
         private void ChargerModeles()
         {
             string sql = @"
-                SELECT md.id,
-                       md.designation || ' (' ||
-                           COALESCE(c.designation, 'sans catégorie') || ' / ' ||
-                           COALESCE(m.designation, 'sans marque') || ')' AS affichage
-                FROM Modele md
-                LEFT JOIN Categorie c ON md.categorie_id = c.id
-                LEFT JOIN Marque m ON md.marque_id = m.id
-                ORDER BY md.designation";
+                SELECT m.id,
+                       TRIM(COALESCE(c.designation,'') || ' ' || COALESCE(mq.designation,'') || ' ' || m.designation || ' ' || COALESCE(m.reference,'')) AS affichage
+                FROM Modele m
+                LEFT JOIN Categorie c ON m.categorie_id = c.id
+                LEFT JOIN Marque mq ON m.marque_id = mq.id
+                ORDER BY m.designation";
             var t = DatabaseHelper.ExecuteQuery(sql);
             cmbModele.DataSource = t;
             cmbModele.DisplayMember = "affichage";
