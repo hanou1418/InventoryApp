@@ -34,8 +34,9 @@ namespace InventoryApp
         private static readonly (string Affichage, string Colonne)[] ColonnesFiltrablesCategorie = new[]
         {
             ("Tous les champs", ""),
+            ("Code",            "Code"),
             ("Désignation",     "Désignation"),
-            ("Modèles liés",     "Modèles liés")
+            ("QTE Articles liés",     "QTE Articles liés")
         };
 
         public FrmGererCategories(Form1? mainForm = null)
@@ -218,20 +219,26 @@ namespace InventoryApp
         public void ChargerListe()
         {
             string sql = @"
-                SELECT c.id AS 'ID', c.code AS 'Code', c.designation AS 'Désignation',
-                       (SELECT COUNT(*) FROM Modele m WHERE m.categorie_id = c.id) AS 'Modèles liés'
-                FROM Categorie c ORDER BY c.id DESC";
+                            SELECT 
+                                c.id AS 'ID', 
+                                c.code AS 'Code', 
+                                c.designation AS 'Désignation', 
+                                (SELECT COALESCE(SUM(m.quantite), 0) 
+                                 FROM Modele m 
+                                 WHERE m.categorie_id = c.id) AS 'QTE Articles liés'
+                            FROM Categorie c 
+                            ORDER BY c.id DESC";
 
             DataTable dt = DatabaseHelper.ExecuteQuery(sql);
             tableCategoriesDataGridView.DataSource = dt;
 
             if (tableCategoriesDataGridView.Columns.Contains("colModifier")) tableCategoriesDataGridView.Columns.Remove("colModifier");
             if (tableCategoriesDataGridView.Columns.Contains("colSupprimer")) tableCategoriesDataGridView.Columns.Remove("colSupprimer");
-            if (tableCategoriesDataGridView.Columns.Contains("colImprimer")) tableCategoriesDataGridView.Columns.Remove("colImprimer");
+            //if (tableCategoriesDataGridView.Columns.Contains("colImprimer")) tableCategoriesDataGridView.Columns.Remove("colImprimer");
 
             tableCategoriesDataGridView.Columns.Add(new DataGridViewButtonColumn { Name = "colModifier", HeaderText = "Modifier", Width = 60, FlatStyle = FlatStyle.Flat });
             tableCategoriesDataGridView.Columns.Add(new DataGridViewButtonColumn { Name = "colSupprimer", HeaderText = "Supprimer", Width = 60, FlatStyle = FlatStyle.Flat });
-            tableCategoriesDataGridView.Columns.Add(new DataGridViewButtonColumn { Name = "colImprimer", HeaderText = "Imprimer", Width = 60, FlatStyle = FlatStyle.Flat });
+           // tableCategoriesDataGridView.Columns.Add(new DataGridViewButtonColumn { Name = "colImprimer", HeaderText = "Imprimer", Width = 60, FlatStyle = FlatStyle.Flat });
 
             AppliquerFiltre();
         }
@@ -361,8 +368,8 @@ namespace InventoryApp
                 DessinerBouton(e, isHovered, isClicked, Color.FromArgb(240, 253, 244), Color.FromArgb(220, 252, 231), Color.FromArgb(187, 247, 208), Color.FromArgb(134, 239, 172), "pencil_icon.png");
             else if (e.ColumnIndex == tableCategoriesDataGridView.Columns["colSupprimer"]?.Index)
                 DessinerBouton(e, isHovered, isClicked, Color.FromArgb(254, 242, 242), Color.FromArgb(254, 226, 226), Color.FromArgb(254, 202, 202), Color.FromArgb(252, 165, 165), "delet_icon.png");
-            else if (e.ColumnIndex == tableCategoriesDataGridView.Columns["colImprimer"]?.Index)
-                DessinerBouton(e, isHovered, isClicked, Color.FromArgb(239, 246, 255), Color.FromArgb(219, 234, 254), Color.FromArgb(191, 219, 254), Color.FromArgb(147, 197, 253), "imprimerbleu.png");
+            //else if (e.ColumnIndex == tableCategoriesDataGridView.Columns["colImprimer"]?.Index)
+             //   DessinerBouton(e, isHovered, isClicked, Color.FromArgb(239, 246, 255), Color.FromArgb(219, 234, 254), Color.FromArgb(191, 219, 254), Color.FromArgb(147, 197, 253), "imprimerbleu.png");
         }
 
         private static void DessinerBouton(DataGridViewCellPaintingEventArgs e, bool isHovered, bool isClicked, Color bg, Color bgHover, Color bgClick, Color border, string iconFile)
@@ -402,7 +409,7 @@ namespace InventoryApp
                     {
                         DerniereCategorieModifieeId = id;
                         ChargerListe();
-                        _mainForm?.ChargerEquipements();
+                        //_mainForm?.ChargerEquipements();
                     }
                 }
             }
@@ -435,13 +442,13 @@ namespace InventoryApp
                         "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
-            else if (colName == "colImprimer")
+           /* else if (colName == "colImprimer")
             {
                 ImprimerFicheIndividuelle(tableCategoriesDataGridView.Rows[e.RowIndex]);
-            }
+            }*/
         }
 
-        private void ImprimerFicheIndividuelle(DataGridViewRow row)
+        /*private void ImprimerFicheIndividuelle(DataGridViewRow row)
         {
             var html = new StringBuilder();
             html.Append("<html><head><meta charset='utf-8'><style>");
@@ -467,7 +474,7 @@ namespace InventoryApp
             File.WriteAllText(tempFile, html.ToString());
             Process.Start(new ProcessStartInfo(tempFile) { UseShellExecute = true });
         }
-
+        */
         private void ChargerIconeBouton(Guna2Button btn, string iconName)
         {
             string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "image", iconName);

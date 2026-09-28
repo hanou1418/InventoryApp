@@ -106,7 +106,7 @@ namespace InventoryApp
             {
                 if (frm.ShowDialog(this) == DialogResult.OK && frm.EquipementAjoute)
                 {
-                    _mainForm?.ChargerEquipements();
+                   // _mainForm?.ChargerEquipements();
                 }
             }
         }

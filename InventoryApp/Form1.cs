@@ -1,16 +1,9 @@
 using InventoryApp.Data;
 using Microsoft.Data.Sqlite;
-using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
-using System.Drawing;
-using System.IO;
 using System.Net;
 using System.Text;
-using System.Windows.Forms;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-
 
 namespace InventoryApp
 {
@@ -24,21 +17,7 @@ namespace InventoryApp
 
 
         // Colonnes filtrables centralisées
-        private static readonly (string Affichage, string Colonne)[] ColonnesFiltrablesEquipement = new[]
-        {
-            ("Tous les champs", ""),
-            ("Modèle",           "Modèle"),
-            ("N° Série",         "N° Série"),
-            ("Référence Modèle", "Référence Modèle"),
-            ("Marque",           "Marque"),
-            ("Catégorie",        "Catégorie"),
-            ("Utilisé par",      "Utilisé par"),
-            ("Statut",           "Statut"),
-            ("Code-Barre",       "Code-Barre"),
-            ("Date Acquisition", "Date Acquisition"),
-            ("Observations",     "Observations"),
-            ("Emplacement",      "Emplacement")
-        };
+
 
         private static readonly (string Affichage, string Colonne)[] ColonnesFiltrablesMVM = new[]
         {
@@ -62,12 +41,10 @@ namespace InventoryApp
         {
             InitializeComponent();
 
-            // Configuration DataGridView Equipements
-            table_equipements.RowTemplate.Height = 38;
-            table_equipements.CellPainting += Table_equipements_CellPainting;
-            table_equipements.CellContentClick += table_equipements_CellContentClick;
-            table_equipements.CellMouseMove += (s, e) => table_equipements.InvalidateCell(e.ColumnIndex, e.RowIndex);
-            table_equipements.CellMouseLeave += (s, e) => table_equipements.InvalidateCell(e.ColumnIndex, e.RowIndex);
+            // Sauvegarde automatique et silencieuse juste avant la fermeture de l'application —
+            // aucune action de l'utilisateur nécessaire, capture toujours le dernier état des données.
+            this.FormClosing += (s, e) => InventoryApp.Data.DatabaseHelper.SauvegarderBaseDonnees();
+
 
             // Configuration DataGridView Mouvements
             tableMVMDataGridView.RowTemplate.Height = 38;
@@ -76,8 +53,6 @@ namespace InventoryApp
             tableMVMDataGridView.CellMouseMove += (s, e) => tableMVMDataGridView.InvalidateCell(e.ColumnIndex, e.RowIndex);
             tableMVMDataGridView.CellMouseLeave += (s, e) => tableMVMDataGridView.InvalidateCell(e.ColumnIndex, e.RowIndex);
 
-            // Chargements initiaux
-            ChargerEquipements();
             ChargerMouvements();
 
             // Événements
@@ -101,131 +76,13 @@ namespace InventoryApp
             AfficherConteneur(home_container);
             OuvrirFormulaireEnfant(CreerFrmAccueil());
 
-
+            //TextBoxfiltrage.KeyDown += TextBoxfiltrage_KeyDown;
             stock_containers.SelectedIndexChanged += stock_containers_SelectedIndexChanged;
         }
 
         // =====================================================
-        // SECTION 1 : ÉQUIPEMENTS & STOCK
+        // SECTION 1 : OUTILS COMMUNS DES GRILLES (boutons d'action)
         // =====================================================
-
-        public void ChargerEquipements()
-        {
-            string sql = @"
-                SELECT 
-                    e.id AS 'ID',
-                    c.designation AS 'Catégorie',
-                    mq.designation AS 'Marque',
-                    m.designation AS 'Modèle',
-                    m.reference AS 'Référence Modèle',
-                    e.numero_serie AS 'N° Série',
-                    e.etat AS 'État',
-                    e.statut AS 'Statut',
-                    COALESCE((
-                        SELECT GROUP_CONCAT(emp_info, ' | ')
-                        FROM (
-                            SELECT emp.nom || ' ' || emp.prenom || ' (' || COALESCE(emp.departement, 'Sans Service') || ')' AS emp_info
-                            FROM Ligne_mouvement lm
-                            JOIN Mouvement mvt ON lm.mouvement_id = mvt.id
-                            JOIN Employe emp ON mvt.employe_id = emp.id
-                            WHERE lm.equipement_id = e.id
-                            ORDER BY mvt.date_mouvement DESC, mvt.id DESC
-                            LIMIT 3
-                        )
-                    ), '') AS 'Utilisé par',
-                    e.code_barre AS 'Code-Barre',
-                    e.date_acquisition AS 'Date Acquisition',
-                    e.observations AS 'Observations',
-                    e.emplacement AS 'Emplacement'
-                FROM Equipement e
-                JOIN Modele m ON e.modele_id = m.id
-                LEFT JOIN Marque mq ON m.marque_id = mq.id
-                LEFT JOIN Categorie c ON m.categorie_id = c.id
-                ORDER BY e.id DESC";
-
-            DataTable dt = DatabaseHelper.ExecuteQuery(sql);
-
-            // 1. Réinitialiser la source et vider les colonnes préexistantes
-            table_equipements.DataSource = null;
-            table_equipements.Columns.Clear();
-
-            // 2. Générer automatiquement les colonnes texte à partir du DataTable
-            table_equipements.AutoGenerateColumns = true;
-            table_equipements.DataSource = dt;
-
-            if (table_equipements.Columns.Contains("Utilisé par"))
-                table_equipements.Columns["Utilisé par"].ValueType = typeof(string);
-
-            // 3. Ajouter proprement les boutons d'action
-            AjouterColonnesActions();
-            PeuplerListeFiltrage();
-            AppliquerFiltre();
-        }
-        private void AjouterColonnesActions()
-        {
-            string[] colsActions = { "colModifier", "colSupprimer", "colImprimer" };
-            foreach (var colName in colsActions)
-            {
-                if (table_equipements.Columns.Contains(colName))
-                    table_equipements.Columns.Remove(colName);
-            }
-
-            table_equipements.Columns.Add(new DataGridViewButtonColumn
-            {
-                Name = "colModifier",
-                HeaderText = "Modifier",
-                Width = 60,
-                FlatStyle = FlatStyle.Flat
-            });
-
-            table_equipements.Columns.Add(new DataGridViewButtonColumn
-            {
-                Name = "colSupprimer",
-                HeaderText = "Supprimer",
-                Width = 60,
-                FlatStyle = FlatStyle.Flat
-            });
-
-            table_equipements.Columns.Add(new DataGridViewButtonColumn
-            {
-                Name = "colImprimer",
-                HeaderText = "Imprimer",
-                Width = 60,
-                FlatStyle = FlatStyle.Flat
-            });
-        }
-        private void Table_equipements_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
-        {
-            if (e.RowIndex < 0) return;
-
-            Point mousePos = table_equipements.PointToClient(Cursor.Position);
-            bool isHovered = e.CellBounds.Contains(mousePos);
-            bool isClicked = isHovered && (Control.MouseButtons == MouseButtons.Left);
-            int iconSize = 18;
-
-            if (e.ColumnIndex == table_equipements.Columns["colModifier"]?.Index)
-            {
-                DessinerBoutonAction(e, isHovered, isClicked,
-                    Color.FromArgb(240, 253, 244), Color.FromArgb(220, 252, 231), Color.FromArgb(187, 247, 208),
-                    Color.FromArgb(134, 239, 172), "pencil_icon.png", iconSize);
-            }
-            else if (e.ColumnIndex == table_equipements.Columns["colSupprimer"]?.Index)
-            {
-                DessinerBoutonAction(e, isHovered, isClicked,
-                    Color.FromArgb(254, 242, 242), Color.FromArgb(254, 226, 226), Color.FromArgb(254, 202, 202),
-                    Color.FromArgb(252, 165, 165), "delet_icon.png", iconSize);
-            }
-            else if (e.ColumnIndex == table_equipements.Columns["colImprimer"]?.Index)
-            {
-                DessinerBoutonAction(e, isHovered, isClicked,
-                    Color.FromArgb(239, 246, 255), // Fond normal (Bleu très clair)
-                    Color.FromArgb(219, 234, 254), // Fond au survol / Hover (Bleu doux)
-                    Color.FromArgb(191, 219, 254), // Fond au clic / Click (Bleu plus soutenu)
-                    Color.FromArgb(147, 197, 253), // Bordure (Bleu moyen)
-                    "imprimerbleu.png",
-                    iconSize);
-            }
-        }
 
         private void DessinerBoutonAction(DataGridViewCellPaintingEventArgs e, bool isHovered, bool isClicked,
             Color bg, Color bgHover, Color bgClick, Color borderColor, string iconFilename, int iconSize)
@@ -256,230 +113,12 @@ namespace InventoryApp
             e.Handled = true;
         }
 
-        private void table_equipements_CellContentClick(object sender, DataGridViewCellEventArgs e)
-        {
-            if (e.RowIndex < 0) return;
 
-            var grid = (DataGridView)sender;
-            string colName = grid.Columns[e.ColumnIndex].Name;
-            int equipementId = Convert.ToInt32(grid.Rows[e.RowIndex].Cells["ID"].Value);
-
-            if (colName == "colModifier")
-            {
-                using (var frm = new FrmAjouterArticle(this, equipementId))
-                {
-                    if (frm.ShowDialog(this) == DialogResult.OK)
-                        ChargerEquipements();
-                }
-            }
-            else if (colName == "colSupprimer")
-            {
-                string modele = grid.Rows[e.RowIndex].Cells["Modèle"].Value?.ToString() ?? "";
-                var confirm = MessageBox.Show(
-                    $"Voulez-vous vraiment supprimer l'équipement #{equipementId} ({modele}) ?\nCette action est irréversible.",
-                    "Confirmer la suppression", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-
-                if (confirm == DialogResult.Yes)
-                {
-                    try
-                    {
-                        DatabaseHelper.ExecuteNonQuery("DELETE FROM Equipement WHERE id = @id", new SqliteParameter("@id", equipementId));
-                        ChargerEquipements();
-                    }
-                    catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
-                    {
-                        MessageBox.Show("Impossible de supprimer : cet équipement est référencé dans un historique.\nMarquez-le comme 'Réformé' à la place.",
-                            "Suppression refusée", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
-            }
-            else if (colName == "colImprimer")
-            {
-                ImprimerFicheEquipement(grid.Rows[e.RowIndex]);
-            }
-        }
-
-        private void ImprimerFicheEquipement(DataGridViewRow row)
-        {
-            var html = new StringBuilder();
-            html.Append("<html><head><meta charset='utf-8'><style>");
-            html.Append("body{font-family:Arial, sans-serif; margin:30px; color:#000;}");
-            html.Append(".header-officiel{text-align:center; font-weight:bold; margin-bottom:20px;}");
-            html.Append("table{border-collapse:collapse; width:100%; margin-top:20px;}");
-            html.Append("th,td{border:1px solid #333; padding:8px 12px; text-align:left;}");
-            html.Append("th{background:#f0f2f5;}");
-            html.Append("</style></head><body>");
-            html.Append("<div class='header-officiel'>الجمهورية الجزائرية الديمقراطية الشعبية<br>FICHE D'ÉQUIPEMENT</div>");
-
-            html.Append("<table>");
-            foreach (DataGridViewColumn col in table_equipements.Columns)
-            {
-                if (col.Visible && !col.Name.StartsWith("col"))
-                {
-                    string val = row.Cells[col.Index].Value?.ToString() ?? "";
-                    html.Append($"<tr><th>{WebUtility.HtmlEncode(col.HeaderText)}</th><td>{WebUtility.HtmlEncode(val)}</td></tr>");
-                }
-            }
-            html.Append("</table></body></html>");
-
-            string tempFile = Path.Combine(Path.GetTempPath(), $"fiche_equipement_{row.Cells["ID"].Value}.html");
-            File.WriteAllText(tempFile, html.ToString());
-            Process.Start(new ProcessStartInfo(tempFile) { UseShellExecute = true });
-        }
-
-        // =====================================================
-        // SECTION 2 : FILTRAGE & RECHERCHE
-        // =====================================================
-
-        private void TextBoxfiltrage_TextChanged(object sender, EventArgs e) => AppliquerFiltre();
-        private void listeDeFiltrage_SelectedIndexChanged(object sender, EventArgs e) => AppliquerFiltre();
-
-        private void PeuplerListeFiltrage()
-        {
-            if (listeDeFIltrage.Items.Count > 0) return;
-
-            listeDeFIltrage.DropDownStyle = ComboBoxStyle.DropDownList;
-            foreach (var (affichage, _) in ColonnesFiltrablesEquipement)
-                listeDeFIltrage.Items.Add(affichage);
-
-            listeDeFIltrage.SelectedIndex = 0;
-        }
-
-        private void AppliquerFiltre()
-        {
-            if (table_equipements.DataSource is not DataTable dt) return;
-
-            string recherche = TextBoxfiltrage.Text.Trim().Replace("'", "''");
-            DataView vue = dt.DefaultView;
-
-            if (string.IsNullOrEmpty(recherche))
-            {
-                vue.RowFilter = "";
-                AfficherCompteur(dt.Rows.Count, dt.Rows.Count);
-                return;
-            }
-
-            int index = listeDeFIltrage.SelectedIndex;
-            string colonne = (index >= 0 && index < ColonnesFiltrablesEquipement.Length)
-                ? ColonnesFiltrablesEquipement[index].Colonne : "";
-
-            if (string.IsNullOrEmpty(colonne))
-            {
-                var conditions = new List<string>();
-                foreach (DataColumn col in dt.Columns)
-                    conditions.Add($"CONVERT([{col.ColumnName}], 'System.String') LIKE '%{recherche}%'");
-                vue.RowFilter = string.Join(" OR ", conditions);
-            }
-            else
-            {
-                vue.RowFilter = $"CONVERT([{colonne}], 'System.String') LIKE '%{recherche}%'";
-            }
-
-            AfficherCompteur(vue.Count, dt.Rows.Count);
-        }
-
-        private void AfficherCompteur(int nbFiltre, int nbTotal)
-        {
-            if (lblCompteur == null) return;
-            lblCompteur.Text = (nbFiltre == nbTotal)
-                ? $"{nbTotal} équipement(s)"
-                : $"{nbFiltre} affiché(s) sur {nbTotal}";
-        }
 
         // =====================================================
         // SECTION 3 : IMPRESSION GLOBALE & NAVIGATION
         // =====================================================
 
-        private void btnImprimer_Click(object sender, EventArgs e)
-        {
-            if (table_equipements.DataSource is not DataTable dt) return;
-
-            int index = listeDeFIltrage.SelectedIndex;
-            string colGroup = (index > 0 && index < ColonnesFiltrablesEquipement.Length)
-                ? ColonnesFiltrablesEquipement[index].Colonne : "Catégorie";
-
-            GenererRapportImprimable(dt, colGroup);
-        }
-
-        private void GenererRapportImprimable(DataTable dt, string colonneGroupement)
-        {
-            DataView vue = dt.DefaultView;
-            var groupes = new SortedDictionary<string, List<DataRowView>>();
-
-            foreach (DataRowView row in vue)
-            {
-                string cle = row[colonneGroupement]?.ToString();
-                if (string.IsNullOrEmpty(cle)) cle = "(Non défini)";
-                if (!groupes.ContainsKey(cle)) groupes[cle] = new List<DataRowView>();
-                groupes[cle].Add(row);
-            }
-
-            if (groupes.Count == 0)
-            {
-                MessageBox.Show("Aucune donnée à imprimer.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            var colsAffichees = new List<DataGridViewColumn>();
-            foreach (DataGridViewColumn col in table_equipements.Columns)
-            {
-                if (col.Visible && !col.Name.StartsWith("col"))
-                    colsAffichees.Add(col);
-            }
-
-            var html = new StringBuilder();
-            html.Append("<html><head><meta charset='utf-8'><style>");
-            html.Append("body{font-family:Arial, sans-serif; margin:25px; color:#000;}");
-            html.Append(".header-officiel { font-family: Arial, serif; margin-bottom:25px; }");
-            html.Append(".republique { font-size:16px; font-weight:bold; text-align:center; text-decoration:underline; margin-bottom:12px; }");
-            html.Append(".ministere { font-size:13px; font-weight:bold; text-align:right; direction:rtl; line-height:1.6; }");
-            html.Append(".divider { border-bottom:1.5px solid #000; margin:15px 0 20px 0; }");
-            html.Append("h1{font-size:18px; text-align:center; color:#1a237e;}");
-            html.Append("h2{font-size:13px; color:#1a237e; margin-top:20px;}");
-            html.Append("table{border-collapse:collapse; width:100%; margin-bottom:15px;}");
-            html.Append("th,td{border:1px solid #777; padding:5px 8px; font-size:11px; text-align:left;}");
-            html.Append("th{background:#f0f2f5;}");
-            html.Append("@media print{.no-print{display:none;}}");
-            html.Append("</style></head><body>");
-
-            html.Append("<div class='header-officiel'>");
-            html.Append("  <div class='republique'>الجمهورية الجزائرية الديمقراطية الشعبية</div>");
-            html.Append("  <div class='ministere'>");
-            html.Append("    <div>وزارة الداخليـــــة و الجماعات المحلية .</div>");
-            html.Append("    <div>ولايــــة غليزان </div>");
-            html.Append("    <div>مديرية المواصلات السلكية و اللاسلكية الوطنية</div>");
-            html.Append("    <div>مصلحة الادارة و الامداد / مكتب الوسائل العامة و المخزن.</div>");
-            html.Append("  </div><div class='divider'></div></div>");
-
-            html.Append($"<h1>Inventaire — groupé par {WebUtility.HtmlEncode(colonneGroupement)}</h1>");
-            html.Append($"<div style='text-align:center;font-size:11px;'>Généré le {DateTime.Now:dd/MM/yyyy HH:mm} <span class='no-print'>— (Ctrl+P pour imprimer)</span></div>");
-
-            foreach (var groupe in groupes)
-            {
-                html.Append($"<h2>{WebUtility.HtmlEncode(groupe.Key)} ({groupe.Value.Count} équipements)</h2><table><tr>");
-                foreach (var col in colsAffichees)
-                    html.Append($"<th>{WebUtility.HtmlEncode(col.HeaderText)}</th>");
-                html.Append("</tr>");
-
-                foreach (var row in groupe.Value)
-                {
-                    html.Append("<tr>");
-                    foreach (var col in colsAffichees)
-                    {
-                        string field = string.IsNullOrEmpty(col.DataPropertyName) ? col.Name : col.DataPropertyName;
-                        string val = dt.Columns.Contains(field) ? row[field]?.ToString() ?? "" : "";
-                        html.Append($"<td>{WebUtility.HtmlEncode(val)}</td>");
-                    }
-                    html.Append("</tr>");
-                }
-                html.Append("</table>");
-            }
-            html.Append("</body></html>");
-
-            string tempFile = Path.Combine(Path.GetTempPath(), $"rapport_{DateTime.Now:yyyyMMdd_HHmmss}.html");
-            File.WriteAllText(tempFile, html.ToString());
-            Process.Start(new ProcessStartInfo(tempFile) { UseShellExecute = true });
-        }
 
         private void AfficherConteneur(Control conteneurActif)
         {
@@ -494,18 +133,6 @@ namespace InventoryApp
 
         private void btnToAccueilcontainer_Click(object sender, EventArgs e)
         {
-            /* AfficherConteneur(home_container);
-
-             var frmAccueil = new FrmAccueil(this);
-
-             // Wire up dashboard action events to Form1 methods
-             frmAccueil.OnNouveauMouvementClicked += (s, ev) => btnNouveauMouvement_Click(s, ev);
-             frmAccueil.OnAjouterEquipementClicked += (s, ev) => btnAjNouvEquip_Click(s, ev);
-             frmAccueil.OnInventaireClicked += (s, ev) => btnNouveauInventaire_Click(s, ev);
-             frmAccueil.OnEditEmployeRequested += FrmAccueil_OnEditEmployeRequested;
-             frmAccueil.OnDeleteEmployeRequested += FrmAccueil_OnDeleteEmployeRequested;
-
-             OuvrirFormulaireEnfant(frmAccueil);*/
             AfficherConteneur(home_container);
             OuvrirFormulaireEnfant(CreerFrmAccueil());
         }
@@ -519,7 +146,6 @@ namespace InventoryApp
             var frmAccueil = new FrmAccueil(this);
 
             frmAccueil.OnNouveauMouvementClicked += (s, ev) => btnNouveauMouvement_Click(s, ev);
-            frmAccueil.OnAjouterEquipementClicked += (s, ev) => btnAjNouvEquip_Click(s, ev);
             frmAccueil.OnInventaireClicked += (s, ev) => btnNouveauInventaire_Click(s, ev);
             frmAccueil.OnEditEmployeRequested += FrmAccueil_OnEditEmployeRequested;
             frmAccueil.OnDeleteEmployeRequested += FrmAccueil_OnDeleteEmployeRequested;
@@ -568,7 +194,9 @@ namespace InventoryApp
 
         private void OuvrirFormulaireEnfant(Form formEnfant)
         {
+            var ancien = home_container.Tag as Form;
             home_container.Controls.Clear();
+            ancien?.Close(); // arrête les timers de l'ancien tableau de bord (OnFormClosed) au lieu de le laisser tourner
             formEnfant.TopLevel = false;
             formEnfant.FormBorderStyle = FormBorderStyle.None;
             formEnfant.Dock = DockStyle.Fill;
@@ -580,10 +208,26 @@ namespace InventoryApp
         private void btnToStockcontainer_Click(object sender, EventArgs e)
         {
             AfficherConteneur(stock_container);
-            ChargerEquipements();
+            ChargerOngletActifStock();
+        }
+
+        // Recharge les données de l'onglet Stock actuellement affiché (Modèles, Catégories ou Marques).
+        // Centralise la logique utilisée à la fois à l'entrée dans le conteneur Stock
+        // (où le TabControl ne déclenche pas SelectedIndexChanged si l'onglet actif ne change pas)
+        // et lors d'un vrai changement d'onglet, pour garantir que les 3 pages se rechargent toujours.
+        private void ChargerOngletActifStock()
+        {
             if (stock_containers.SelectedTab == Modèlles)
             {
                 ChargerFormulaireModeleDansTab();
+            }
+            else if (stock_containers.SelectedTab == Categories)
+            {
+                ChargerFormulaireCategorieDansTab();
+            }
+            else if (stock_containers.SelectedTab == Marques)
+            {
+                ChargerFormulaireMarqueDansTab();
             }
         }
 
@@ -591,38 +235,7 @@ namespace InventoryApp
         {
             AfficherConteneur(repots_container);
         }
-        private void btnChoisirColonnes_Click(object sender, EventArgs e)
-        {
-            var menu = new Guna.UI2.WinForms.Guna2ContextMenuStrip();
-            foreach (DataGridViewColumn col in table_equipements.Columns)
-            {
-                var item = new ToolStripMenuItem(col.HeaderText) { Checked = col.Visible, CheckOnClick = true };
-                item.Click += (s, args) => col.Visible = item.Checked;
-                menu.Items.Add(item);
-            }
-            menu.Show(btnChoisirColonnes, new Point(0, btnChoisirColonnes.Height));
-        }
 
-        private void btnAjNouvEquip_Click(object sender, EventArgs e)
-        {
-            using (var frm = new FrmAjouterArticle(this))
-            {
-                if (frm.ShowDialog(this) == DialogResult.OK && frm.EquipementAjoute)
-                    ChargerEquipements();
-            }
-        }
-
-        private void table_equipements_Paint(object sender, PaintEventArgs e)
-        {
-            if (table_equipements.ColumnHeadersVisible && table_equipements.Columns.Count > 0)
-            {
-                int h = table_equipements.ColumnHeadersHeight;
-                using (var pen = new Pen(Color.FromArgb(59, 130, 246), 2))
-                    e.Graphics.DrawLine(pen, 0, h, table_equipements.Width, h);
-            }
-        }
-
-        private void Form1_Load(object sender, EventArgs e) { }
 
         // =====================================================
         // SECTION 4 : MOUVEMENTS (BONS)
@@ -683,7 +296,6 @@ namespace InventoryApp
             PeuplerListeFiltrageMVM();
 
         }
-
         private void AjouterColonnesActionsMVM()
         {
             string[] colsActions = { "colModifierMVM", "colSupprimerMVM", "colImprimerMVM" };
@@ -766,7 +378,7 @@ namespace InventoryApp
                     if (frm.ShowDialog(this) == DialogResult.OK)
                     {
                         ChargerMouvements();
-                        ChargerEquipements();
+                        RafraichirAccueil();
                     }
                 }
             }
@@ -781,10 +393,19 @@ namespace InventoryApp
                 {
                     try
                     {
-                        DatabaseHelper.ExecuteNonQuery("DELETE FROM Ligne_mouvement WHERE mouvement_id = @id", new SqliteParameter("@id", mouvementId));
-                        DatabaseHelper.ExecuteNonQuery("DELETE FROM Mouvement WHERE id = @id", new SqliteParameter("@id", mouvementId));
+                        SupprimerMouvement(mouvementId);
                         ChargerMouvements();
-                        ChargerEquipements();
+                        RafraichirAccueil();
+                    }
+                    catch (SqliteException ex) when (ex.SqliteErrorCode == 19)
+                    {
+                        // Les triggers de la base recalculent Modele.quantite à la suppression des lignes.
+                        // Erreur 19 = contrainte violée : le stock d'un modèle deviendrait négatif.
+                        MessageBox.Show(
+                            "Suppression impossible : annuler ce bon rendrait le stock d'un modèle négatif\n" +
+                            "(des quantités entrées par ce bon ont déjà été sorties par un autre mouvement).\n\n" +
+                            "Aucune donnée n'a été modifiée.",
+                            "Suppression refusée", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
                     catch (Exception ex)
                     {
@@ -796,6 +417,42 @@ namespace InventoryApp
             else if (colName == "colImprimerMVM")
             {
                 ImprimerBonMouvement(grid.Rows[e.RowIndex]);
+            }
+        }
+
+        // Suppression atomique d'un bon. Les triggers de la base restituent le stock ligne par ligne, et le
+        // CHECK (quantite >= 0) est évalué après chaque ligne : on supprime donc d'abord les SORTIES (le stock
+        // remonte), puis les ENTRÉES (il redescend). Sinon un bon valide pouvait être refusé à tort.
+        // Tout est dans une seule transaction : en cas d'erreur, rien n'est supprimé.
+        private static void SupprimerMouvement(int mouvementId)
+        {
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                if (conn.State != ConnectionState.Open)
+                    conn.Open();
+
+                using (var tx = conn.BeginTransaction())
+                {
+                    string[] etapes =
+                    {
+                        "DELETE FROM Ligne_mouvement WHERE mouvement_id = @id AND est_sortie = 1;",
+                        "DELETE FROM Ligne_mouvement WHERE mouvement_id = @id;",
+                        "DELETE FROM Mouvement WHERE id = @id;"
+                    };
+
+                    foreach (string sql in etapes)
+                    {
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.Transaction = tx;
+                            cmd.CommandText = sql;
+                            cmd.Parameters.AddWithValue("@id", mouvementId);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    tx.Commit();
+                }
             }
         }
 
@@ -819,19 +476,18 @@ namespace InventoryApp
                 contenuMouvement = "أصرح بأني استلمت من السيد(ة) المكلف(ة) بتسيير مكتب الوسائل العامة والمخزن بمديرية المواصلات السلكية واللاسلكية، العتاد المبين في الجدول أدناه:";
             }
 
-            // 2. Récupération des lignes de mouvement (équipements)
+            // 2. Récupération des lignes de mouvement (modèles + quantités)
             var lignesSortie = new List<Dictionary<string, string>>();
             var lignesEntree = new List<Dictionary<string, string>>();
 
+            // Ligne_mouvement référence modele_id + quantite (pas de numéro de série individuel).
             string sqlLignes = @"
         SELECT 
-            lm.est_sortie, lm.etat_a_la_mouvement, lm.observation AS obs_ligne,
-            eq.numero_serie, eq.code_barre,
+            lm.est_sortie, lm.etat_a_la_mouvement, lm.observation AS obs_ligne, lm.quantite,
             mod.designation AS designation_modele, mod.reference AS reference_modele,
             mrq.designation AS marque_nom, cat.designation AS famille_nom
         FROM Ligne_mouvement lm
-        JOIN Equipement eq ON lm.equipement_id = eq.id
-        JOIN Modele mod ON eq.modele_id = mod.id
+        JOIN Modele mod ON lm.modele_id = mod.id
         LEFT JOIN Marque mrq ON mod.marque_id = mrq.id
         LEFT JOIN Categorie cat ON mod.categorie_id = cat.id
         WHERE lm.mouvement_id = @id";
@@ -852,13 +508,13 @@ namespace InventoryApp
                                 ["marque_nom"] = reader["marque_nom"]?.ToString() ?? "",
                                 ["designation_modele"] = reader["designation_modele"]?.ToString() ?? "",
                                 ["reference_modele"] = reader["reference_modele"]?.ToString() ?? "",
-                                ["numero_serie"] = reader["numero_serie"]?.ToString() ?? "",
-                                ["code_barre"] = reader["code_barre"]?.ToString() ?? "",
+                                ["quantite"] = reader["quantite"]?.ToString() ?? "1",
                                 ["etat_a_la_mouvement"] = reader["etat_a_la_mouvement"]?.ToString() ?? "",
                                 ["obs_ligne"] = reader["obs_ligne"]?.ToString() ?? ""
                             };
 
-                            if (Convert.ToInt32(reader["est_sortie"]) == 1)
+                            // est_sortie NULL = entrée (même règle que les triggers de la base)
+                            if (reader["est_sortie"] != DBNull.Value && Convert.ToInt32(reader["est_sortie"]) == 1)
                                 lignesSortie.Add(item);
                             else
                                 lignesEntree.Add(item);
@@ -944,8 +600,6 @@ namespace InventoryApp
                 html.Append("<th>Marque</th>");
                 html.Append("<th>Designniation de modèlle</th>");
                 html.Append("<th>Reference modèle</th>");
-                html.Append("<th>Numero serie</th>");
-                html.Append("<th>Code barre</th>");
                 html.Append("<th>Etat</th>");
                 html.Append("<th>observation</th>");
                 html.Append("</tr>");
@@ -953,13 +607,11 @@ namespace InventoryApp
                 foreach (var r in items)
                 {
                     html.Append("<tr>");
-                    html.Append("<td>01</td>");
+                    html.Append($"<td>{WebUtility.HtmlEncode(r["quantite"])}</td>");
                     html.Append($"<td>{WebUtility.HtmlEncode(r["famille_nom"])}</td>");
                     html.Append($"<td>{WebUtility.HtmlEncode(r["marque_nom"])}</td>");
                     html.Append($"<td>{WebUtility.HtmlEncode(r["designation_modele"])}</td>");
                     html.Append($"<td>{WebUtility.HtmlEncode(r["reference_modele"])}</td>");
-                    html.Append($"<td>{WebUtility.HtmlEncode(r["numero_serie"])}</td>");
-                    html.Append($"<td>{WebUtility.HtmlEncode(r["code_barre"])}</td>");
                     html.Append($"<td>{WebUtility.HtmlEncode(r["etat_a_la_mouvement"])}</td>");
                     html.Append($"<td>{WebUtility.HtmlEncode(r["obs_ligne"])}</td>");
                     html.Append("</tr>");
@@ -1040,12 +692,18 @@ namespace InventoryApp
                 if (frm.ShowDialog(this) == DialogResult.OK)
                 {
                     ChargerMouvements();
-                    ChargerEquipements();
+                    RafraichirAccueil();
                 }
             }
         }
 
-
+        // Recalcule les cartes, l'alerte de quantité, le graphique et les employés du tableau de bord
+        // s'il est actuellement affiché (le stock a changé suite à un mouvement).
+        private void RafraichirAccueil()
+        {
+            if (home_container.Tag is FrmAccueil accueilOuvert && !accueilOuvert.IsDisposed)
+                accueilOuvert.RafraichirDashboard();
+        }
 
 
 
@@ -1152,11 +810,19 @@ namespace InventoryApp
 
             if (colName == "colModifierINV")
             {
+                // TODO (à refaire un par un, pas maintenant) : FrmAjouterInventaire doit être
+                // adapté pour choisir un Modèle + une quantité dans ses lignes.
+                MessageBox.Show(
+                    "La modification d'inventaire est en cours de mise à jour suite au changement de structure (Modèle + quantité).\nElle sera réactivée prochainement.",
+                    "Fonctionnalité en cours de mise à jour", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                /* ANCIEN CODE (à réactiver une fois FrmAjouterInventaire adapté au Modèle) :
                 using (var frm = new FrmAjouterInventaire(this, inventaireId))
                 {
                     if (frm.ShowDialog(this) == DialogResult.OK)
                         ChargerInventaires();
                 }
+                */
             }
             else if (colName == "colSupprimerINV")
             {
@@ -1195,11 +861,11 @@ namespace InventoryApp
             string bureau = row.Cells["Bureau"].Value?.ToString() ?? "";
             string date = row.Cells["Date"].Value?.ToString() ?? "";
 
+            // MIGRATION : Ligne_inventaire référence directement modele_id désormais.
             string sqlLignes = @"
                 SELECT li.quantite, li.observation, m.designation AS modele
                 FROM Ligne_inventaire li
-                JOIN Equipement e ON li.equipement_id = e.id
-                JOIN Modele m ON e.modele_id = m.id
+                JOIN Modele m ON li.modele_id = m.id
                 WHERE li.inventaire_id = @id
                 ORDER BY li.id";
 
@@ -1207,7 +873,7 @@ namespace InventoryApp
 
             var html = new StringBuilder();
             html.Append("<html><head><meta charset='utf-8'><style>");
-            html.Append("body{font-family:Arial, sans-serif; margin:35px; color:#000;}");
+            html.Append("body{font-family:times new roman, sans-serif; margin:35px; color:#000;}");
             html.Append(".header-officiel{text-align:right; direction:rtl; font-size:13px; font-weight:bold; line-height:1.6; margin-bottom:15px;}");
             html.Append(".republique{text-align:center; font-size:24px; font-weight:bold; text-decoration:underline; margin-bottom:15px; direction:rtl;}");
             html.Append(".entet{text-align:right; font-size:16px; font-weight:bold;margin-bottom:15px; direction:rtl;}");
@@ -1306,6 +972,13 @@ namespace InventoryApp
 
         private void btnNouveauInventaire_Click(object sender, EventArgs e)
         {
+            // TODO (à refaire un par un, pas maintenant) : FrmAjouterInventaire doit être
+            // adapté pour choisir un Modèle + une quantité dans ses lignes.
+            MessageBox.Show(
+                "La création d'inventaire est en cours de mise à jour suite au changement de structure (Modèle + quantité).\nElle sera réactivée prochainement.",
+                "Fonctionnalité en cours de mise à jour", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            /* ANCIEN CODE (à réactiver une fois FrmAjouterInventaire adapté au Modèle) :
             using (var frm = new FrmAjouterInventaire(this))
             {
                 if (frm.ShowDialog(this) == DialogResult.OK && frm.InventaireEnregistre)
@@ -1313,16 +986,7 @@ namespace InventoryApp
                     ChargerInventaires();
                 }
             }
-        }
-
-        private void stockHeaderPanel_Paint(object sender, PaintEventArgs e)
-        {
-
-        }
-
-        private void tabPage1_Click(object sender, EventArgs e)
-        {
-
+            */
         }
         //******************************************************************
         #region Authentification & Gestion utilisateurs
@@ -1333,7 +997,7 @@ namespace InventoryApp
         private void AfficherInfoUtilisateur()
         {
             if (lblUtilisateurConnecte != null)
-                lblUtilisateurConnecte.Text =SessionUtilisateur.NomAffichage;
+                lblUtilisateurConnecte.Text = SessionUtilisateur.NomAffichage;
         }
 
         // Bouton "Gérer utilisateurs" (à créer dans le Designer, nommé
@@ -1387,7 +1051,7 @@ namespace InventoryApp
 
         #endregion
 
-        
+
         private void ChargerFormulaireModeleDansTab()
         {
             // 1. Si le formulaire n'existe pas ou a été détruit, on l'instancie
@@ -1465,25 +1129,14 @@ namespace InventoryApp
         // 3. Événement mis à jour pour gérer la navigation entre tous les onglets
         private void stock_containers_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (stock_containers.SelectedTab == Modèlles)
-            {
-                ChargerFormulaireModeleDansTab();
-            }
-            else if (stock_containers.SelectedTab == Categories)
-            {
-                ChargerFormulaireCategorieDansTab();
-            }
-            else if (stock_containers.SelectedTab == Marques)
-            {
-                ChargerFormulaireMarqueDansTab();
-            }
+            ChargerOngletActifStock();
         }
-    
-    
 
 
-    
-    
-    
+
+
+
+
+
     }
 }

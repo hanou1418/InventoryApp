@@ -4,7 +4,6 @@ using System.Drawing;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
-using System.Windows.Forms;
 using Guna.UI2.WinForms;
 using InventoryApp.Data;
 using Microsoft.Data.Sqlite;
@@ -23,11 +22,10 @@ namespace InventoryApp
         private Guna2BorderlessForm borderlessForm = null!;
 
         // Conteneurs principaux
-        private Guna2Panel pnlHeader = null!;
+        private Guna2CustomGradientPanel pnlHeader = null!;
         private Guna2Panel pnlContent = null!;
 
         // Éléments du Header Officiel
-        private Guna2ControlBox btnCloseHeader = null!;
         private Guna2CirclePictureBox picMinistere = null!;
         private Guna2CirclePictureBox picDirection = null!;
 
@@ -91,38 +89,14 @@ namespace InventoryApp
             // =========================================================
             // PANNEAU SUPÉRIEUR (HEADER INSTITUTIONNEL HORIZONTAL)
             // =========================================================
-            pnlHeader = new Guna2Panel
+            pnlHeader = new Guna2CustomGradientPanel
             {
                 Dock = DockStyle.Top,
                 Height = 180,
-                FillColor = Color.FromArgb(15, 23, 42) // Bleu nuit profond
-            };
-
-            // Bouton Fermer (en haut à droite du header)
-            btnCloseHeader = new Guna2ControlBox
-            {
-                ControlBoxType = Guna.UI2.WinForms.Enums.ControlBoxType.CloseBox,
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                Left = 858,
-                Top = 12,
-                Size = new Size(30, 30),
-                FillColor = Color.Transparent,
-                IconColor = Color.FromArgb(203, 213, 225),
-                BorderRadius = 6
-            };
-
-            // République (Titre principal du haut)
-            lblRepublique = new Label
-            {
-                Text = "RÉPUBLIQUE ALGÉRIENNE DÉMOCRATIQUE ET POPULAIRE",
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(148, 163, 184),
-                BackColor = Color.Transparent,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Left = 100,
-                Top = 16,
-                Width = 700,
-                Height = 22
+                FillColor = Color.Green,
+                FillColor2 = Color.WhiteSmoke,
+                FillColor3 = Color.FromArgb(0, 64, 0),
+                FillColor4 = Color.White
             };
 
             // Logo Gauche : Ministère
@@ -133,7 +107,7 @@ namespace InventoryApp
                 Top = 48,
                 SizeMode = PictureBoxSizeMode.StretchImage,
                 BackColor = Color.Transparent,
-                Image = ChargerImageDirecte("MinistereLogo.jfif")
+                Image = ChargerImageDirecte("imagelogodtn.jpg")
             };
 
             // Logo Droit : Direction
@@ -144,43 +118,105 @@ namespace InventoryApp
                 Top = 48,
                 SizeMode = PictureBoxSizeMode.StretchImage,
                 BackColor = Color.Transparent,
-                Image = ChargerImageDirecte("DGTNLOGO.jfif")
+                Image = ChargerImageDirecte("MinistereLogo.jfif")
             };
 
-            // Texte Ministère (Centré entre les logos)
-            lblMinistere = new Label
+            // 1. République (Titre principal)
+            lblRepublique = new Label
             {
-                Text = "Ministère de l'Intérieur, des Collectivités Locales et de l'Aménagement du Territoire",
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                Font = new Font("Times New Roman", 22F, FontStyle.Bold),
                 ForeColor = Color.White,
                 BackColor = Color.Transparent,
                 TextAlign = ContentAlignment.MiddleCenter,
-                Left = 135,
-                Top = 46,
-                Width = 630,
-                Height = 26
+                Left = 100,
+                Top = 25,
+                Width = 700,
+                Height = 40
+            };
+            string txtRepublique = "الجمهورية الجزائرية الديمقراطية الشعبية";
+
+            lblRepublique.Paint += (s, e) =>
+            {
+                e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+                TextFormatFlags flags = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.WordBreak;
+
+                // Ombre
+                TextRenderer.DrawText(e.Graphics, txtRepublique, lblRepublique.Font,
+                    new Rectangle(2, 2, lblRepublique.Width, lblRepublique.Height),
+                    Color.FromArgb(150, 0, 0, 0), flags);
+
+                // Texte Principal
+                TextRenderer.DrawText(e.Graphics, txtRepublique, lblRepublique.Font,
+                    new Rectangle(0, 0, lblRepublique.Width, lblRepublique.Height),
+                    Color.White, flags);
             };
 
-            // Direction Générale (Centrée)
-            lblDirection = new Label
+            // 2. Texte Ministère (Centré avec Shadow)
+            lblMinistere = new Label
             {
-                Text = "Direction Générale des Transmissions Nationales",
-                Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(59, 130, 246),
+                Font = new Font("Times New Roman", 16F, FontStyle.Bold),
+                ForeColor = Color.WhiteSmoke,
                 BackColor = Color.Transparent,
                 TextAlign = ContentAlignment.MiddleCenter,
                 Left = 135,
-                Top = 76,
+                Top = 70,
                 Width = 630,
-                Height = 26
+                Height = 30
+            };
+            string txtMinistere = "وزارة الداخلية والجماعات المحلية والتهيئة العمرانية";
+
+            lblMinistere.Paint += (s, e) =>
+            {
+                e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+                TextFormatFlags flags = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.WordBreak;
+
+                // Ombre (décalage léger de 1px car la police est plus petite)
+                TextRenderer.DrawText(e.Graphics, txtMinistere, lblMinistere.Font,
+                    new Rectangle(1, 1, lblMinistere.Width, lblMinistere.Height),
+                    Color.FromArgb(140, 0, 0, 0), flags);
+
+                // Texte Principal
+                TextRenderer.DrawText(e.Graphics, txtMinistere, lblMinistere.Font,
+                    new Rectangle(0, 0, lblMinistere.Width, lblMinistere.Height),
+                    Color.WhiteSmoke, flags);
             };
 
-            // Direction Wilaya (Pied du header)
+            // 3. Direction Générale (Centrée avec Shadow)
+            lblDirection = new Label
+            {
+                Font = new Font("Times New Roman", 14F, FontStyle.Bold),
+                ForeColor = Color.WhiteSmoke,
+                BackColor = Color.Transparent,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Left = 135,
+                Top = 106,
+                Width = 630,
+                Height = 30
+            };
+            string txtDirection = "المديرية العامة للمواصلات السلكية واللاسلكية الوطنية";
+
+            lblDirection.Paint += (s, e) =>
+            {
+                e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+                TextFormatFlags flags = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.WordBreak;
+
+                // Ombre (décalage léger de 1px)
+                TextRenderer.DrawText(e.Graphics, txtDirection, lblDirection.Font,
+                    new Rectangle(1, 1, lblDirection.Width, lblDirection.Height),
+                    Color.FromArgb(140, 0, 0, 0), flags);
+
+                // Texte Principal
+                TextRenderer.DrawText(e.Graphics, txtDirection, lblDirection.Font,
+                    new Rectangle(0, 0, lblDirection.Width, lblDirection.Height),
+                    Color.WhiteSmoke, flags);
+            };
+
+            // 4. Direction Wilaya (Pied du header - Sans ombre)
             lblWilaya = new Label
             {
                 Text = " DTN - Relizane ",
                 Font = new Font("Segoe UI", 9F, FontStyle.Italic),
-                ForeColor = Color.FromArgb(203, 213, 225),
+                ForeColor = Color.Gray,
                 BackColor = Color.Transparent,
                 TextAlign = ContentAlignment.MiddleCenter,
                 Left = 135,
@@ -189,13 +225,16 @@ namespace InventoryApp
                 Height = 24
             };
 
-            pnlHeader.Controls.Add(btnCloseHeader);
+            // Ajout des contrôles au panneau
             pnlHeader.Controls.Add(lblRepublique);
             pnlHeader.Controls.Add(picMinistere);
             pnlHeader.Controls.Add(picDirection);
             pnlHeader.Controls.Add(lblMinistere);
             pnlHeader.Controls.Add(lblDirection);
             pnlHeader.Controls.Add(lblWilaya);
+
+            picDirection.BringToFront();
+            picMinistere.BringToFront();
 
             // =========================================================
             // PANNEAU CENTRAL (FORMULAIRE DE CONNEXION)
@@ -210,7 +249,7 @@ namespace InventoryApp
             {
                 Text = "CONNEXION AU SYSTÈME",
                 Font = new Font("Segoe UI", 16F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(15, 23, 42),
+                ForeColor = Color.Green,
                 Left = 240,
                 Top = 22,
                 Width = 420,
@@ -254,7 +293,7 @@ namespace InventoryApp
                 PlaceholderText = "Nom d'utilisateur ou matricule",
                 Font = new Font("Segoe UI", 9.5F),
                 BorderColor = Color.FromArgb(226, 232, 240),
-                FocusedState = { BorderColor = Color.FromArgb(59, 130, 246) }
+                FocusedState = { BorderColor = Color.Green }
             };
             y += 58;
 
@@ -280,7 +319,7 @@ namespace InventoryApp
                 Font = new Font("Segoe UI", 9.5F),
                 UseSystemPasswordChar = true,
                 BorderColor = Color.FromArgb(226, 232, 240),
-                FocusedState = { BorderColor = Color.FromArgb(59, 130, 246) }
+                FocusedState = { BorderColor = Color.Green }
             };
             txtMdp.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) BtnConnexion_Click(s, e); };
             y += 50;
@@ -332,7 +371,7 @@ namespace InventoryApp
                 Text = "SE CONNECTER",
                 Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
                 ForeColor = Color.White,
-                FillColor = Color.FromArgb(59, 130, 246),
+                FillColor = Color.Green,
                 BorderRadius = 8,
                 Cursor = Cursors.Hand
             };
@@ -395,10 +434,11 @@ namespace InventoryApp
                 return;
             }
 
-            string hashSaisi = HashSha256(mdp);
+            
 
             try
             {
+                string hashSaisi = HashSha256(mdp);
                 var t = DatabaseHelper.ExecuteQuery(
                     "SELECT id, nom_affichage FROM Utilisateur WHERE login=@login AND mot_de_passe_hash=@hash AND actif=1",
                     new SqliteParameter("@login", login),
@@ -426,12 +466,13 @@ namespace InventoryApp
                     else
                     {
                         AfficherErreur($"Identifiant ou mot de passe incorrect. ({restantes} tentative(s) restante(s))");
-                    }
+                        }
                 }
             }
             catch (Exception ex)
             {
-                AfficherErreur("Erreur de connexion à la base de données.\n" + ex.Message);
+                MessageBox.Show("Erreur de base de données : " + ex.Message, "Erreur SQL", MessageBoxButtons.OK, MessageBoxIcon.Error);
+             
             }
         }
 

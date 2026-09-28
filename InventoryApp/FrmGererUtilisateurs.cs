@@ -24,6 +24,7 @@ namespace InventoryApp
         private Guna2ControlBox btnCloseHeader = null!;
 
         private Guna2Button btnNouveau = null!;
+        private Guna2Button btnQuitterBas = null!;
         private Guna2DataGridView dgv = null!;
 
         public FrmGererUtilisateurs()
@@ -32,7 +33,7 @@ namespace InventoryApp
             StartPosition = FormStartPosition.CenterParent;
             BackColor = Color.FromArgb(248, 250, 252);
             Width = 620;
-            Height = 480;
+            Height = 520;
 
             ConstruireControles();
             Load += (s, e) => ChargerListe();
@@ -58,18 +59,21 @@ namespace InventoryApp
             pnlHeader.Controls.Add(lblHeaderTitle);
             pnlHeader.Controls.Add(btnCloseHeader);
 
+            // Bouton pour créer un utilisateur
             btnNouveau = new Guna2Button { Text = "+ Nouvel utilisateur", Left = 20, Top = 65, Width = 180, Height = 36, BorderRadius = 6, FillColor = Color.FromArgb(59, 130, 246), ForeColor = Color.White };
             btnNouveau.Click += (s, e) =>
             {
                 using (var frm = new FrmAjouterUtilisateur()) { if (frm.ShowDialog(this) == DialogResult.OK) ChargerListe(); }
             };
 
+            
+            // Tableau d'affichage
             dgv = new Guna2DataGridView
             {
                 Left = 20,
                 Top = 115,
                 Width = 570,
-                Height = 310,
+                Height = 330,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
@@ -82,7 +86,14 @@ namespace InventoryApp
             dgv.CellMouseMove += (s, e) => dgv.InvalidateCell(e.ColumnIndex, e.RowIndex);
             dgv.CellMouseLeave += (s, e) => dgv.InvalidateCell(e.ColumnIndex, e.RowIndex);
 
-            Controls.Add(pnlHeader); Controls.Add(btnNouveau); Controls.Add(dgv);
+            // Bouton Quitter / Fermer en bas à droite
+            btnQuitterBas = new Guna2Button { Text = "Fermer", Left = 490, Top = 460, Width = 100, Height = 36, BorderRadius = 6, FillColor = Color.FromArgb(239, 68, 68), ForeColor = Color.White };
+            btnQuitterBas.Click += (s, e) => Close();
+
+            Controls.Add(pnlHeader);
+            Controls.Add(btnNouveau);
+            Controls.Add(dgv);
+            Controls.Add(btnQuitterBas);
         }
 
         private void ChargerListe()
@@ -161,6 +172,7 @@ namespace InventoryApp
         }
     }
 
+
     /// <summary>
     /// Popup d'ajout/modification d'un utilisateur.
     /// En mode modification, laisser les champs mdp vides = ne pas changer.
@@ -181,7 +193,7 @@ namespace InventoryApp
         private Guna2TextBox txtMdpConfirm = null!;
         private Guna2ComboBox cmbActif = null!;
         private Guna2Button btnEnregistrer = null!;
-        private Guna2Button btnAnnuler = null!;
+        private Guna2Button btnQuitter = null!; // Bouton de sortie ajouté
 
         public FrmAjouterUtilisateur(int? idEnEdition = null)
         {
@@ -218,11 +230,17 @@ namespace InventoryApp
             cmbActif.SelectedIndex = 0;
             Controls.Add(cmbActif); y += 55;
 
-            btnEnregistrer = new Guna2Button { Text = "Enregistrer", Left = 180, Top = y, Width = 110, Height = 36, BorderRadius = 6, FillColor = Color.FromArgb(59, 130, 246), ForeColor = Color.White };
-            btnAnnuler = new Guna2Button { Text = "Annuler", Left = 300, Top = y, Width = 90, Height = 36, BorderRadius = 6, FillColor = Color.Gray, ForeColor = Color.White };
+            // Configuration des boutons "Enregistrer" et "Quitter"
+            btnEnregistrer = new Guna2Button { Text = "Enregistrer", Left = 170, Top = y, Width = 110, Height = 36, BorderRadius = 6, FillColor = Color.FromArgb(59, 130, 246), ForeColor = Color.White };
+            btnQuitter = new Guna2Button { Text = "Quitter", Left = 290, Top = y, Width = 100, Height = 36, BorderRadius = 6, FillColor = Color.FromArgb(239, 68, 68), ForeColor = Color.White };
+
             btnEnregistrer.Click += BtnEnregistrer_Click;
-            btnAnnuler.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
-            Controls.Add(pnlHeader); Controls.Add(btnEnregistrer); Controls.Add(btnAnnuler);
+            btnQuitter.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
+
+            Controls.Add(pnlHeader);
+            Controls.Add(btnEnregistrer);
+            Controls.Add(btnQuitter);
+
             Height = y + 80;
         }
 

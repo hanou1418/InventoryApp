@@ -244,7 +244,7 @@ namespace InventoryApp
                 else EnregistrerNouvelArticle();
 
                 EquipementAjoute = true;
-                _mainForm?.ChargerEquipements();
+                //_mainForm?.ChargerEquipements();
                 DialogResult = DialogResult.OK;
                 Close();
             }

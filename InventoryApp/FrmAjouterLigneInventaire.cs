@@ -205,11 +205,16 @@ namespace InventoryApp
             }
 
             string sql = @"
-                SELECT id,
-                       id || '  |  ' || statut || '  |  ' || COALESCE(etat,'-') || '  |  ' || COALESCE(code_barre,'-') || '  |  ' || COALESCE(numero_serie,'-') AS affichage
-                FROM Equipement
-                WHERE modele_id = @modeleId
-                ORDER BY id DESC";
+        SELECT id, 
+               id || '  |  ' || 
+               COALESCE(code_barre, '-') || '  |  ' || 
+               COALESCE(numero_serie, '-') || '  |  ' || 
+               COALESCE(etat, '-') || '  |  ' || 
+               COALESCE(statut, '-') || '  |  ' || 
+               COALESCE(observations, '-') AS affichage
+        FROM Equipement
+        WHERE modele_id = @modeleId
+        ORDER BY id DESC";
 
             var t = DatabaseHelper.ExecuteQuery(sql, new SqliteParameter("@modeleId", modeleId));
 

@@ -13,7 +13,6 @@ namespace InventoryApp
     {
         // Events utilisés par Form1
         public event EventHandler OnNouveauMouvementClicked;
-        public event EventHandler OnAjouterEquipementClicked;
         public event EventHandler OnAjouterEmployeClicked;
         public event EventHandler OnInventaireClicked;
         public event EventHandler<int> OnEditEmployeRequested;
@@ -34,22 +33,23 @@ namespace InventoryApp
         private const string TEXTE_HEADER = " République Algérienne Démocratique et Populaire __ Ministère de l'Intérieur, des Collectivités Locales et des Transports __ Direction Générale des Transmissions Nationales __ Direction des Transmissions Nationales de la Wilaya de Relizane     الجمهورية الجزائرية الديمقراطية الشعبية __ وزارة الداخلية والجماعات المحلية والتهيئة العمرانية __ المديرية العامة للمواصلات السلكية واللاسلكيةالوطنية __ مديرية المواصلات السلكية واللاسلكيةالوطنية لولاية غليزان";
         // Cartes statistiques
         private TableLayoutPanel layoutCards;
-        private Label lblTotalNum;
+        private Label lblModelesNum;
         private Label lblStockNum;
-        private Label lblAffecteNum;
-        private Label lblPanneNum;
+        private Label lblCirculationNum;
+        private Label lblAlerteNum;
 
         // Toolbar
         private Guna2Panel panelToolbar;
         private Guna2TextBox txtSearch;
         private FlowLayoutPanel flowActions;
         private Guna2Button btnNewMovement;
-        private Guna2Button btnQuickAddEquip;
+        private Guna2Button btnQuickAddModele;
         private Guna2Button btnQuickAddEmp;
         private Guna2Button btnInventory;
 
         // Graphique
         private Guna2Panel panelChartSection;
+        private Label lblChartTitle;
         private Guna2ComboBox cbCategories;
         private Panel panelPieChartDisplay;
         private DataTable dtChartData;
@@ -76,7 +76,7 @@ namespace InventoryApp
 
             ChargerStatistiques();
             ChargerCategoriesCombo();
-            ChargerPieChartStatut(null);
+            ChargerPieChartStock(null);
             ChargerQTEAlert();
             ChargerResumeEmployes();
             UpdateDbConnectionStatus();
@@ -150,28 +150,28 @@ namespace InventoryApp
             layoutCards.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
             Guna2Panel cardTotal = CreerCarte(
-                "Total équipements",
+                "Articles référencés",
                 "0",
                 Color.FromArgb(59, 130, 246),
-                out lblTotalNum);
+                out lblModelesNum);
 
             Guna2Panel cardStock = CreerCarte(
-                "En stock",
+                "Quantité en stock",
                 "0",
                 Color.FromArgb(16, 185, 129),
                 out lblStockNum);
 
             Guna2Panel cardAffecte = CreerCarte(
-                "Affectés / Prêts",
+                "Affectés / Prêts (qté)",
                 "0",
                 Color.FromArgb(245, 158, 11),
-                out lblAffecteNum);
+                out lblCirculationNum);
 
             Guna2Panel cardPanne = CreerCarte(
-                "Panne / Réparation",
+                "Articles en alerte de stock",
                 "0",
                 Color.FromArgb(239, 68, 68),
-                out lblPanneNum);
+                out lblAlerteNum);
 
             layoutCards.Controls.Add(cardTotal, 0, 0);
             layoutCards.Controls.Add(cardStock, 1, 0);
@@ -218,8 +218,8 @@ namespace InventoryApp
                 "+ Mouvement",
                 Color.FromArgb(59, 130, 246));
 
-            btnQuickAddEquip = CreerBoutonAction(
-                "+ Équipement",
+            btnQuickAddModele = CreerBoutonAction(
+                "+ Article",
                 Color.FromArgb(16, 185, 129));
 
             btnQuickAddEmp = CreerBoutonAction(
@@ -231,13 +231,13 @@ namespace InventoryApp
                 Color.FromArgb(139, 92, 246));
 
             btnNewMovement.Click += BtnNewMovement_Click;
-            btnQuickAddEquip.Click += BtnQuickAddEquip_Click;
+            btnQuickAddModele.Click += BtnQuickAddModele_Click;
             btnQuickAddEmp.Click += BtnQuickAddEmp_Click;
             btnInventory.Click += BtnInventory_Click;
 
             flowActions.Controls.Add(btnInventory);
             flowActions.Controls.Add(btnQuickAddEmp);
-            flowActions.Controls.Add(btnQuickAddEquip);
+            flowActions.Controls.Add(btnQuickAddModele);
             flowActions.Controls.Add(btnNewMovement);
 
             panelToolbar.Controls.Add(flowActions);
@@ -264,9 +264,9 @@ namespace InventoryApp
                 Height = 40
             };
 
-            Label lblChartTitle = new Label
+            lblChartTitle = new Label
             {
-                Text = "Répartition des équipements par statut",
+                Text = "Répartition du stock par catégorie",
                 Dock = DockStyle.Left,
                 AutoSize = true,
                 Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
@@ -389,20 +389,14 @@ namespace InventoryApp
 
         private void BtnNewMovement_Click(object sender, EventArgs e)
         {
+            // Form1 (abonné à cet événement) ouvre FrmAjouterMouvement, puis rafraîchit ses grilles
+            // ET ce tableau de bord. Ne rien ouvrir ici : sinon le formulaire s'afficherait deux fois.
             OnNouveauMouvementClicked?.Invoke(this, EventArgs.Empty);
-
-            using (FrmAjouterMouvement frm = new FrmAjouterMouvement(_mainForm))
-            {
-                if (frm.ShowDialog(this) == DialogResult.OK)
-                    RafraichirDashboard();
-            }
         }
 
-        private void BtnQuickAddEquip_Click(object sender, EventArgs e)
+        private void BtnQuickAddModele_Click(object sender, EventArgs e)
         {
-           OnAjouterEquipementClicked?.Invoke(this, EventArgs.Empty);
-
-            using (FrmAjouterArticle frm = new FrmAjouterArticle(_mainForm))
+            using (FrmAjouterModele frm = new FrmAjouterModele())
             {
                 if (frm.ShowDialog(this) == DialogResult.OK)
                     RafraichirDashboard();
@@ -422,20 +416,15 @@ namespace InventoryApp
 
         private void BtnInventory_Click(object sender, EventArgs e)
         {
-           OnInventaireClicked?.Invoke(this, EventArgs.Empty);
-
-            using (FrmAjouterInventaire frm = new FrmAjouterInventaire(_mainForm))
-            {
-                if (frm.ShowDialog(this) == DialogResult.OK)
-                    RafraichirDashboard();
-            }
+            // Même principe que pour le mouvement : c'est Form1 qui gère l'ouverture de l'inventaire.
+            OnInventaireClicked?.Invoke(this, EventArgs.Empty);
         }
 
         public void RafraichirDashboard()
         {
             ChargerStatistiques();
             ChargerCategoriesCombo();
-            ChargerPieChartStatut(null);
+            ChargerPieChartStock(null);
             ChargerQTEAlert();
             ChargerResumeEmployes();
             UpdateDbConnectionStatus();
@@ -490,26 +479,23 @@ namespace InventoryApp
         {
             try
             {
+                // Tout est calculé à partir de Modele (quantite / qte_alerte) et des lignes de mouvement.
+                // "Affectés / Prêts" = par employé : quantités sorties en Affectation/Prêt moins quantités
+                // rendues en Retour (jamais négatif), puis somme sur tous les employés.
                 string sql = @"
                     SELECT
-                        COUNT(*) AS Total,
-                        SUM(CASE
-                            WHEN LOWER(COALESCE(statut, '')) = 'en stock'
-                            THEN 1 ELSE 0
-                        END) AS EnStock,
-
-                        SUM(CASE
-                            WHEN LOWER(COALESCE(statut, '')) IN
-                            ('affecté', 'affecte', 'en prêt', 'en pret')
-                            THEN 1 ELSE 0
-                        END) AS Affectes,
-
-                        SUM(CASE
-                            WHEN LOWER(COALESCE(statut, '')) IN
-                            ('en panne', 'en réparation', 'en reparation')
-                            THEN 1 ELSE 0
-                        END) AS EnPanne
-                    FROM Equipement";
+                        (SELECT COUNT(*) FROM Modele) AS Modeles,
+                        (SELECT COALESCE(SUM(quantite), 0) FROM Modele) AS QteStock,
+                        (SELECT COALESCE(SUM(net), 0) FROM (
+                            SELECT MAX(0, SUM(CASE
+                                    WHEN m.type_mouvement IN ('Affectation', 'Prêt') AND lm.est_sortie = 1 THEN lm.quantite
+                                    WHEN m.type_mouvement = 'Retour' AND lm.est_sortie = 0 THEN -lm.quantite
+                                    ELSE 0 END)) AS net
+                            FROM Mouvement m
+                            JOIN Ligne_mouvement lm ON lm.mouvement_id = m.id
+                            WHERE m.employe_id IS NOT NULL
+                            GROUP BY m.employe_id)) AS Circulation,
+                        (SELECT COUNT(*) FROM Modele WHERE quantite <= qte_alerte) AS EnAlerte";
 
                 DataTable dt = DatabaseHelper.ExecuteQuery(sql);
 
@@ -518,10 +504,10 @@ namespace InventoryApp
 
                 DataRow row = dt.Rows[0];
 
-                lblTotalNum.Text = row["Total"] == DBNull.Value ? "0" : row["Total"].ToString();
-                lblStockNum.Text = row["EnStock"] == DBNull.Value ? "0" : row["EnStock"].ToString();
-                lblAffecteNum.Text = row["Affectes"] == DBNull.Value ? "0" : row["Affectes"].ToString();
-                lblPanneNum.Text = row["EnPanne"] == DBNull.Value ? "0" : row["EnPanne"].ToString();
+                lblModelesNum.Text = row["Modeles"] == DBNull.Value ? "0" : row["Modeles"].ToString();
+                lblStockNum.Text = row["QteStock"] == DBNull.Value ? "0" : row["QteStock"].ToString();
+                lblCirculationNum.Text = row["Circulation"] == DBNull.Value ? "0" : row["Circulation"].ToString();
+                lblAlerteNum.Text = row["EnAlerte"] == DBNull.Value ? "0" : row["EnAlerte"].ToString();
             }
             catch (Exception ex)
             {
@@ -535,6 +521,8 @@ namespace InventoryApp
         {
             try
             {
+                // Stock réel = Modele.quantite ; un modèle est en alerte dès que quantite <= qte_alerte
+                // (les plus critiques en premier).
                 string sql = @"SELECT 
                                 md.id AS 'ID', 
                                 md.reference AS 'Référence', 
@@ -542,17 +530,19 @@ namespace InventoryApp
                                 COALESCE(c.designation, '—') AS 'Catégorie', 
                                 COALESCE(mq.designation, '—') AS 'Marque', 
                                 md.qte_alerte AS 'QTE alerte',
-                                COUNT(e.id) AS 'Équipements totaux',
-                                COUNT(CASE WHEN e.statut = 'En stock' THEN 1 END) AS 'En stock',
-                                COUNT(CASE WHEN e.statut = 'En prêt' THEN 1 END) AS 'En prêt'
+                                md.quantite AS 'En stock'
                             FROM Modele md
                             LEFT JOIN Categorie c ON md.categorie_id = c.id
                             LEFT JOIN Marque mq ON md.marque_id = mq.id
-                            LEFT JOIN Equipement e ON e.modele_id = md.id
-                            GROUP BY md.id, md.reference, md.designation, c.designation, mq.designation, md.qte_alerte
-                            HAVING COUNT(CASE WHEN e.statut = 'En stock' THEN 1 END) <= md.qte_alerte
-                            ORDER BY md.id DESC";
+                            WHERE md.quantite <= md.qte_alerte
+                            ORDER BY md.quantite ASC, md.designation";
 
+                // Repartir de zéro à chaque chargement : sans cela, si la 1re requête est vide (ou typée
+                // autrement), les colonnes auto-générées gardent un mauvais type (image) et lèvent
+                // "Invalid cast from String to Image" au rechargement suivant.
+                gridMouvements.DataSource = null;
+                gridMouvements.Columns.Clear();
+                gridMouvements.AutoGenerateColumns = true;
                 gridMouvements.DataSource = DatabaseHelper.ExecuteQuery(sql);
             }
             catch (Exception ex)
@@ -570,20 +560,11 @@ namespace InventoryApp
                 string sql = @"
                     SELECT
                         e.id AS id,
-                        e.matricule AS 'Matricule',
                         (e.nom || ' ' || e.prenom) AS 'Employé',
                         COALESCE(e.function, 'Sans fonction') AS 'Fonction',
-                        COALESCE(e.departement, 'Sans service') AS 'Département',
-                        COALESCE(COUNT(lm.equipement_id), 0) AS 'Nb équipements'
+                        COALESCE(e.departement, 'Sans service') AS 'Département'
                     FROM Employe e
-                    LEFT JOIN Mouvement m
-                        ON m.employe_id = e.id
-                        AND m.type_mouvement IN ('Affectation', 'Prêt')
-                    LEFT JOIN Ligne_mouvement lm
-                        ON lm.mouvement_id = m.id
-                        AND lm.est_sortie = 1
-                    GROUP BY e.id
-                    ORDER BY COUNT(lm.equipement_id) DESC";
+                    ORDER BY e.id DESC";
 
                 DataTable dt = DatabaseHelper.ExecuteQuery(sql);
 
@@ -667,38 +648,86 @@ namespace InventoryApp
 
             if (int.TryParse(cbCategories.SelectedValue.ToString(), out categorieId))
             {
-                ChargerPieChartStatut(categorieId == -1 ? (int?)null : categorieId);
+                ChargerPieChartStock(categorieId == -1 ? (int?)null : categorieId);
             }
         }
 
         // ================= GRAPHIQUE =================
 
-        private void ChargerPieChartStatut(int? categorieId)
+        // Toutes catégories : quantité en stock par catégorie.
+        // Une catégorie choisie : quantité en stock par modèle de cette catégorie.
+        // modele On garde les 5 plus grosses parts et on regroupe le reste dans "Autres" (palette de 6 couleurs).
+        private void ChargerPieChartStock(int? categorieId)
         {
             try
             {
-                string sql = @"
-                    SELECT
-                        COALESCE(e.statut, 'Non défini') AS Statut,
-                        COUNT(e.id) AS Total
-                    FROM Equipement e
-                    INNER JOIN Modele m ON e.modele_id = m.id
-                    WHERE (@CategorieId IS NULL OR m.categorie_id = @CategorieId)
-                    GROUP BY e.statut
-                    ORDER BY Total DESC";
+                DataTable source;
 
-                Dictionary<string, object> parameters = new Dictionary<string, object>
+                if (categorieId.HasValue)
                 {
-                    { "@CategorieId", categorieId.HasValue ? (object)categorieId.Value : DBNull.Value }
-                };
+                    string sqlModeles = @"
+                        SELECT TRIM(m.designation || ' ' || COALESCE(m.reference, '')) AS Libelle,
+                               m.quantite AS Total
+                        FROM Modele m
+                        WHERE m.categorie_id = @CategorieId AND m.quantite > 0
+                        ORDER BY m.quantite DESC, m.designation";
 
-                dtChartData = DatabaseHelper.ExecuteQueryWithParams(sql, parameters);
+                    source = DatabaseHelper.ExecuteQueryWithParams(sqlModeles,
+                        new Dictionary<string, object> { { "@CategorieId", categorieId.Value } });
+                    lblChartTitle.Text = "Répartition du stock par modèle";
+                }
+                else
+                {
+                    string sqlCategories = @"
+                        SELECT COALESCE(c.designation, 'Sans catégorie') AS Libelle,
+                               SUM(m.quantite) AS Total
+                        FROM Modele m
+                        LEFT JOIN Categorie c ON c.id = m.categorie_id
+                        GROUP BY m.categorie_id
+                        HAVING SUM(m.quantite) > 0
+                        ORDER BY Total DESC";
+
+                    source = DatabaseHelper.ExecuteQuery(sqlCategories);
+                    lblChartTitle.Text = "Répartition du stock par catégorie";
+                }
+
+                dtChartData = RegrouperEnAutres(source, 5);
                 panelPieChartDisplay.Invalidate();
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine("Erreur graphique : " + ex.Message);
             }
+        }
+
+        private static DataTable RegrouperEnAutres(DataTable source, int maxParts)
+        {
+            DataTable resultat = new DataTable();
+            resultat.Columns.Add("Libelle", typeof(string));
+            resultat.Columns.Add("Total", typeof(long));
+
+            if (source == null)
+                return resultat;
+
+            long autres = 0;
+            int rang = 0;
+
+            foreach (DataRow row in source.Rows)
+            {
+                long total = row["Total"] == DBNull.Value ? 0 : Convert.ToInt64(row["Total"]);
+
+                if (rang < maxParts)
+                    resultat.Rows.Add(row["Libelle"]?.ToString() ?? "?", total);
+                else
+                    autres += total;
+
+                rang++;
+            }
+
+            if (autres > 0)
+                resultat.Rows.Add("Autres", autres);
+
+            return resultat;
         }
 
         private void PanelPieChartDisplay_Paint(object sender, PaintEventArgs e)
@@ -714,7 +743,7 @@ namespace InventoryApp
                 using (Brush brush = new SolidBrush(Color.Gray))
                 {
                     g.DrawString(
-                        "Aucune donnée disponible.",
+                        "Aucun stock à afficher.",
                         font,
                         brush,
                         new PointF(20, 40));
@@ -765,7 +794,7 @@ namespace InventoryApp
             {
                 DataRow row = dtChartData.Rows[i];
 
-                string statut = row["Statut"]?.ToString() ?? "Non défini";
+                string libelle = row["Libelle"]?.ToString() ?? "?";
                 int count = Convert.ToInt32(row["Total"]);
 
                 float sweepAngle = (count / (float)totalGlobal) * 360F;
@@ -782,7 +811,7 @@ namespace InventoryApp
                 using (Font font = new Font("Segoe UI", 9F))
                 using (Brush brushText = new SolidBrush(couleurTexte))
                 {
-                    string texte = statut + " : " + count + " (" + pourcentage + "%)";
+                    string texte = libelle + " : " + count + " (" + pourcentage + "%)";
 
                     g.DrawString(
                         texte,
@@ -818,17 +847,17 @@ namespace InventoryApp
                 string sqlEmp = @"
                     SELECT
                         e.id AS id,
+                        e.matricule AS 'Matricule',
                         (e.nom || ' ' || e.prenom) AS 'Employé',
                         COALESCE(e.function, 'Sans fonction') AS 'Fonction',
                         COALESCE(e.departement, 'Sans service') AS 'Département',
-                        COALESCE(COUNT(lm.equipement_id), 0) AS 'Nb équipements'
+                        MAX(0, COALESCE(SUM(CASE
+                            WHEN m.type_mouvement IN ('Affectation', 'Prêt') AND lm.est_sortie = 1 THEN lm.quantite
+                            WHEN m.type_mouvement = 'Retour' AND lm.est_sortie = 0 THEN -lm.quantite
+                            ELSE 0 END), 0)) AS 'Qté détenue'
                     FROM Employe e
-                    LEFT JOIN Mouvement m
-                        ON m.employe_id = e.id
-                        AND m.type_mouvement IN ('Affectation', 'Prêt')
-                    LEFT JOIN Ligne_mouvement lm
-                        ON lm.mouvement_id = m.id
-                        AND lm.est_sortie = 1
+                    LEFT JOIN Mouvement m ON m.employe_id = e.id
+                    LEFT JOIN Ligne_mouvement lm ON lm.mouvement_id = m.id
                     WHERE
                         (e.nom || ' ' || e.prenom) LIKE @q
                         OR e.departement LIKE @q
@@ -854,7 +883,7 @@ namespace InventoryApp
                 System.Diagnostics.Debug.WriteLine("Erreur recherche : " + ex.Message);
             }
         }
-        
+
         // ================= GRILLE EMPLOYÉS =================
 
         private void PrepareEmployesGrid(Guna2DataGridView dgv)
@@ -1009,7 +1038,7 @@ namespace InventoryApp
                 }
             }
         }
-        
+
         /*private void GridEmployes_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
@@ -1043,7 +1072,7 @@ namespace InventoryApp
         }
        
         */
-        
+
         private void GridEmployes_CellMouseEnter(object sender, DataGridViewCellEventArgs e)
         {
             DataGridView dgv = sender as DataGridView;
