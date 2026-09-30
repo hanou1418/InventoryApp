@@ -458,189 +458,629 @@ namespace InventoryApp
 
         private void ImprimerBonMouvement(DataGridViewRow row)
         {
-            // 1. Récupération des données du DataGridView
-            int mouvementId = Convert.ToInt32(row.Cells["ID"].Value);
-            string refMouvement = row.Cells["Référence"].Value?.ToString() ?? row.Cells["N° Bon"].Value?.ToString() ?? "";
-            string nomMouvement = row.Cells["Nom Mouvement"].Value?.ToString() ?? "وصل استلام";
-            string nomEmploye = row.Cells["Employé"].Value?.ToString() ?? "";
-            string deptEmploye = row.Cells["Département"].Value?.ToString() ?? "";
-            string fonctionEmploye = row.Cells["Fonction"].Value?.ToString() ?? "";
-            string fonctionEtDepartement = $"{fonctionEmploye} / {deptEmploye}";
-            string dateMouvement = row.Cells["Date"].Value?.ToString() ?? "";
-            string obsMouvement = row.Cells["Remarque"].Value?.ToString() ?? "";
+            // ============================================================
+            // 1. RÉCUPÉRATION DES INFORMATIONS DU MOUVEMENT
+            // ============================================================
 
-            // Lecture du contenu texte (ou texte par défaut)
-            string contenuMouvement = row.Cells["Contenu"].Value?.ToString();
+            int mouvementId = Convert.ToInt32(row.Cells["ID"].Value);
+
+            string refMouvement =
+                row.Cells["Référence"].Value?.ToString()
+                ?? row.Cells["N° Bon"].Value?.ToString()
+                ?? "";
+
+            string nomMouvement =
+                row.Cells["Nom Mouvement"].Value?.ToString()
+                ?? "وصل استلام";
+
+            string nomEmploye =
+                row.Cells["Employé"].Value?.ToString()
+                ?? "";
+
+            string deptEmploye =
+                row.Cells["Département"].Value?.ToString()
+                ?? "";
+
+            string fonctionEmploye =
+                row.Cells["Fonction"].Value?.ToString()
+                ?? "";
+
+            string dateMouvement =
+                row.Cells["Date"].Value?.ToString()
+                ?? "";
+
+            string obsMouvement =
+                row.Cells["Remarque"].Value?.ToString()
+                ?? "";
+
+            string contenuMouvement =
+                row.Cells["Contenu"].Value?.ToString()
+                ?? "";
+
             if (string.IsNullOrWhiteSpace(contenuMouvement))
             {
-                contenuMouvement = "أصرح بأني استلمت من السيد(ة) المكلف(ة) بتسيير مكتب الوسائل العامة والمخزن بمديرية المواصلات السلكية واللاسلكية، العتاد المبين في الجدول أدناه:";
+                contenuMouvement =
+                    "أصرح بأني استلمت من السيد(ة) المكلف(ة) بتسيير مكتب الوسائل العامة والمخزن بمديرية المواصلات السلكية واللاسلكية، العتاد المبين أدناه:";
             }
 
-            // 2. Récupération des lignes de mouvement (modèles + quantités)
-            var lignesSortie = new List<Dictionary<string, string>>();
-            var lignesEntree = new List<Dictionary<string, string>>();
+            // ============================================================
+            // 2. RÉCUPÉRATION DES LIGNES DE MOUVEMENT
+            // ============================================================
 
-            // Ligne_mouvement référence modele_id + quantite (pas de numéro de série individuel).
+            var lignesSortie =
+                new List<Dictionary<string, string>>();
+
+            var lignesEntree =
+                new List<Dictionary<string, string>>();
+
             string sqlLignes = @"
-        SELECT 
-            lm.est_sortie, lm.etat_a_la_mouvement, lm.observation AS obs_ligne, lm.quantite,
-            mod.designation AS designation_modele, mod.reference AS reference_modele,
-            mrq.designation AS marque_nom, cat.designation AS famille_nom
+        SELECT
+            lm.est_sortie,
+            lm.etat_a_la_mouvement,
+            lm.observation AS obs_ligne,
+            lm.quantite,
+
+            mod.designation AS designation_modele,
+            mod.reference AS reference_modele,
+
+            mrq.designation AS marque_nom,
+            cat.designation AS famille_nom
+
         FROM Ligne_mouvement lm
-        JOIN Modele mod ON lm.modele_id = mod.id
-        LEFT JOIN Marque mrq ON mod.marque_id = mrq.id
-        LEFT JOIN Categorie cat ON mod.categorie_id = cat.id
-        WHERE lm.mouvement_id = @id";
+
+        INNER JOIN Modele mod
+            ON lm.modele_id = mod.id
+
+        LEFT JOIN Marque mrq
+            ON mod.marque_id = mrq.id
+
+        LEFT JOIN Categorie cat
+            ON mod.categorie_id = cat.id
+
+        WHERE lm.mouvement_id = @id
+    ";
 
             using (var conn = DatabaseHelper.GetConnection())
             {
                 conn.Open();
-                using (var cmd = new Microsoft.Data.Sqlite.SqliteCommand(sqlLignes, conn))
+
+                using (var cmd = new Microsoft.Data.Sqlite.SqliteCommand(
+                    sqlLignes,
+                    conn))
                 {
                     cmd.Parameters.AddWithValue("@id", mouvementId);
+
                     using (var reader = cmd.ExecuteReader())
                     {
                         while (reader.Read())
                         {
-                            var item = new Dictionary<string, string>
-                            {
-                                ["famille_nom"] = reader["famille_nom"]?.ToString() ?? "",
-                                ["marque_nom"] = reader["marque_nom"]?.ToString() ?? "",
-                                ["designation_modele"] = reader["designation_modele"]?.ToString() ?? "",
-                                ["reference_modele"] = reader["reference_modele"]?.ToString() ?? "",
-                                ["quantite"] = reader["quantite"]?.ToString() ?? "1",
-                                ["etat_a_la_mouvement"] = reader["etat_a_la_mouvement"]?.ToString() ?? "",
-                                ["obs_ligne"] = reader["obs_ligne"]?.ToString() ?? ""
-                            };
+                            var item =
+                                new Dictionary<string, string>();
 
-                            // est_sortie NULL = entrée (même règle que les triggers de la base)
-                            if (reader["est_sortie"] != DBNull.Value && Convert.ToInt32(reader["est_sortie"]) == 1)
+                            item["famille_nom"] =
+                                reader["famille_nom"] == DBNull.Value
+                                    ? ""
+                                    : reader["famille_nom"].ToString();
+
+                            item["marque_nom"] =
+                                reader["marque_nom"] == DBNull.Value
+                                    ? ""
+                                    : reader["marque_nom"].ToString();
+
+                            item["designation_modele"] =
+                                reader["designation_modele"] == DBNull.Value
+                                    ? ""
+                                    : reader["designation_modele"].ToString();
+
+                            item["reference_modele"] =
+                                reader["reference_modele"] == DBNull.Value
+                                    ? ""
+                                    : reader["reference_modele"].ToString();
+
+                            item["quantite"] =
+                                reader["quantite"] == DBNull.Value
+                                    ? ""
+                                    : reader["quantite"].ToString();
+
+                            item["etat_a_la_mouvement"] =
+                                reader["etat_a_la_mouvement"] == DBNull.Value
+                                    ? ""
+                                    : reader["etat_a_la_mouvement"].ToString();
+
+                            item["obs_ligne"] =
+                                reader["obs_ligne"] == DBNull.Value
+                                    ? ""
+                                    : reader["obs_ligne"].ToString();
+
+                            bool estSortie = false;
+
+                            if (reader["est_sortie"] != DBNull.Value)
+                            {
+                                estSortie =
+                                    Convert.ToInt32(reader["est_sortie"]) == 1;
+                            }
+
+                            if (estSortie)
+                            {
                                 lignesSortie.Add(item);
+                            }
                             else
+                            {
                                 lignesEntree.Add(item);
+                            }
                         }
                     }
                 }
             }
 
-            // 3. Construction du document HTML
+            // ============================================================
+            // 3. CONSTRUCTION DU DOCUMENT HTML
+            // ============================================================
+
             var html = new StringBuilder();
-            html.Append("<!DOCTYPE html><html dir='rtl' lang='ar'><head><meta charset='utf-8'><style>");
 
-            // Styles CSS basés sur votre structure
-            html.Append("body { font-family:  Arial, sans-serif; margin: 25px; color: #000; direction: rtl; text-align: right; }");
-            html.Append(".header-officiel { font-family: Arial, serif; margin-bottom: 20px; }");
-            html.Append(".republique {text-align:center; font-size:24px; font-weight:bold; text-decoration:underline; margin-bottom:15px; direction:rtl;}");
+            html.Append(@"
+<!DOCTYPE html>
+<html dir='rtl' lang='ar'>
+<head>
+<meta charset='utf-8'>
 
-            html.Append(".top-container { display: flex; justify-content: space-between; align-items: flex-start; }");
-            html.Append(".ref-box { font-size: 13px; font-weight: bold; text-align: left; direction: ltr; padding-top: 10px; }");
-            html.Append(".ministere{text-align:right; font-size:16px; font-weight:bold;margin-bottom:15px; direction:rtl;}");
+<style>
 
-            html.Append(".title-container { text-align: center; margin: 25px 0 20px 0; }");
-            html.Append(".title-box { display: inline-block; border: 1.5px solid #000; padding: 5px 35px; font-size: 22px; font-weight: bold; }");
+    @page {
+        size: A4;
+        margin: 18mm;
+    }
 
-            html.Append(".info-section { font-size: 14px; line-height: 1.8; margin-bottom: 15px; font-weight: bold; }");
-            html.Append(".info-row { margin-bottom: 4px; }");
-            html.Append(".contenu-text { font-size: 14px; font-weight: normal; margin: 15px 0 20px 0; text-align: justify; line-height: 1.6; }");
+    body {
+        font-family: Arial, sans-serif;
+        margin: 25px;
+        color: #000;
+        direction: rtl;
+        text-align: right;
+        font-size: 14px;
+    }
 
-            html.Append(".table-title { font-size: 14px; font-weight: bold; margin-top: 18px; margin-bottom: 6px; }");
-            html.Append("table { border-collapse: collapse; width: 100%; margin-bottom: 15px; direction: rtl; }");
-            html.Append("th, td { border: 1px solid #000; padding: 6px 8px; font-size: 11px; text-align: center; color: #000; }");
-            html.Append("th { background: #f0f2f5; font-weight: bold; }");
+    .header-officiel {
+        margin-bottom: 20px;
+    }
 
-            html.Append(".obs-section { font-size: 14px; margin-top: 15px; font-weight: bold; }");
-            html.Append(".signatures-table { width: 100%; border: none; margin-top: 40px; }");
-            html.Append(".signatures-table td { border: none; font-size: 14px; font-weight: bold; text-align: center; width: 50%; vertical-align: top; height: 100px; }");
+    .republique {
+        text-align: center;
+        font-size: 24px;
+        font-weight: bold;
+        text-decoration: underline;
+        margin-bottom: 15px;
+    }
 
-            html.Append("@media print { .no-print { display: none; } }");
-            html.Append("</style></head><body>");
+    .top-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
 
-            // En-tête administratif
-            html.Append("<div class='header-officiel'>");
-            html.Append("  <div class='republique'>الجمهورية الجزائرية الديمقراطية الشعبية</div>");
-            html.Append("  <div class='top-container'>");
-            html.Append("    <div class='ministere'>");
-            html.Append("      <div>وزارة الداخليـــــة و الجماعات المحلية .</div>");
-            html.Append("      <div>ولايــــة غليزان </div>");
-            html.Append("      <div>مديرية المواصلات السلكية و اللاسلكية الوطنية</div>");
-            html.Append("      <div>مصلحة الادارة و الامداد / مكتب الوسائل العامة و المخزن.</div>");
-            html.Append("    </div>");
-            html.Append("  </div>");
-            html.Append($"   <div class='ref-box'>Réf : {WebUtility.HtmlEncode(refMouvement)}</div>");
+    .ministere {
+        text-align: right;
+        font-size: 16px;
+        font-weight: bold;
+        line-height: 1.8;
+        margin-bottom: 15px;
+    }
+
+    .ref-box {
+        font-size: 13px;
+        font-weight: bold;
+        text-align: left;
+        direction: ltr;
+        padding-top: 10px;
+    }
+
+    .title-container {
+        text-align: center;
+        margin: 25px 0 20px 0;
+    }
+
+    .title-box {
+        display: inline-block;
+        border: 1.5px solid #000;
+        padding: 5px 35px;
+        font-size: 22px;
+        font-weight: bold;
+    }
+
+    .info-section {
+        font-size: 14px;
+        line-height: 1.8;
+        margin-bottom: 15px;
+        font-weight: bold;
+    }
+
+    .info-row {
+        margin-bottom: 4px;
+    }
+
+    .contenu-text {
+        font-size: 14px;
+        font-weight: normal;
+        margin: 15px 0 20px 0;
+        text-align: justify;
+        line-height: 1.8;
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: bold;
+        margin-top: 20px;
+        margin-bottom: 10px;
+        text-decoration: underline;
+    }
+
+    /*
+       Ligne sans cadre.
+       L'affichage est de gauche vers la droite.
+    */
+    .mouvement-line {
+        border: none;
+        padding: 0;
+        margin: 0 0 8px 0;
+
+        direction: ltr;
+        text-align: left;
+
+        font-family: Arial, sans-serif;
+        font-size: 13px;
+        line-height: 1.8;
+
+        page-break-inside: avoid;
+    }
+
+    .mouvement-line::first-letter {
+        font-weight: bold;
+    }
+
+    .separator {
+        padding: 0 4px;
+    }
+
+    .obs-section {
+        font-size: 14px;
+        margin-top: 18px;
+        font-weight: bold;
+        line-height: 1.8;
+    }
+
+    .signatures-table {
+        width: 100%;
+        border: none;
+        margin-top: 45px;
+        border-collapse: collapse;
+    }
+
+    .signatures-table td {
+        border: none;
+        font-size: 14px;
+        font-weight: bold;
+        text-align: center;
+        width: 50%;
+        vertical-align: top;
+        height: 100px;
+    }
+
+    @media print {
+        .no-print {
+            display: none;
+        }
+    }
+
+</style>
+</head>
+<body>
+");
+
+            // ============================================================
+            // 4. EN-TÊTE ADMINISTRATIF
+            // ============================================================
+
+            html.Append(@"
+                    <div class='header-officiel'>
+
+                        <div class='republique'>
+                            الجمهورية الجزائرية الديمقراطية الشعبية
+                        </div>
+
+                        <div class='top-container'>
+                            <div class='ministere'>
+                                <div>وزارة الداخليـــــة و الجماعات المحلية.</div>
+                                <div>ولايــــة غليزان</div>
+                                <div>مديرية المواصلات السلكية و اللاسلكية الوطنية</div>
+                                <div>مصلحة الادارة و الامداد / مكتب الوسائل العامة و المخزن.</div>
+                            </div>
+                        </div>
+                    ");
+
+            if (!string.IsNullOrWhiteSpace(refMouvement))
+            {
+                html.Append(
+                    "<div class='ref-box'>Réf : " +
+                    WebUtility.HtmlEncode(refMouvement) +
+                    "</div>"
+                );
+            }
+
             html.Append("</div>");
 
-            // Titre encadré
+            // ============================================================
+            // 5. TITRE DU DOCUMENT
+            // ============================================================
+
             html.Append("<div class='title-container'>");
-            html.Append($"  <span class='title-box'>- {WebUtility.HtmlEncode(nomMouvement)} -</span>");
+
+            html.Append(
+                "<span class='title-box'>- " +
+                WebUtility.HtmlEncode(nomMouvement) +
+                " -</span>"
+            );
+
             html.Append("</div>");
 
-            // Informations de l'employé
+            // ============================================================
+            // 6. INFORMATIONS DE L'EMPLOYÉ
+            // ============================================================
+
             html.Append("<div class='info-section'>");
-            html.Append($"  <div class='info-row'>انا الممضي اسفله : {WebUtility.HtmlEncode(nomEmploye)}</div>");
-            html.Append($"  <div class='info-row'>الوظيفة : {WebUtility.HtmlEncode(fonctionEtDepartement)}</div>");
-            html.Append($"  <div class='info-row'>بتاريخ : {WebUtility.HtmlEncode(dateMouvement)}</div>");
+
+            if (!string.IsNullOrWhiteSpace(nomEmploye))
+            {
+                html.Append(
+                    "<div class='info-row'>انا الممضي اسفله : " +
+                    WebUtility.HtmlEncode(nomEmploye) +
+                    "</div>"
+                );
+            }
+
+            if (!string.IsNullOrWhiteSpace(fonctionEmploye) ||
+                !string.IsNullOrWhiteSpace(deptEmploye))
+            {
+                string fonctionDepartement = "";
+
+                if (!string.IsNullOrWhiteSpace(fonctionEmploye))
+                {
+                    fonctionDepartement = fonctionEmploye;
+                }
+
+                if (!string.IsNullOrWhiteSpace(deptEmploye))
+                {
+                    if (!string.IsNullOrWhiteSpace(fonctionDepartement))
+                    {
+                        fonctionDepartement += " / ";
+                    }
+
+                    fonctionDepartement += deptEmploye;
+                }
+
+                html.Append(
+                    "<div class='info-row'>الوظيفة : " +
+                    WebUtility.HtmlEncode(fonctionDepartement) +
+                    "</div>"
+                );
+            }
+
+            if (!string.IsNullOrWhiteSpace(dateMouvement))
+            {
+                html.Append(
+                    "<div class='info-row'>بتاريخ : " +
+                    WebUtility.HtmlEncode(dateMouvement) +
+                    "</div>"
+                );
+            }
+
             html.Append("</div>");
 
-            // Contenu explicatif
+            // ============================================================
+            // 7. CONTENU EXPLICATIF
+            // ============================================================
+
             if (!string.IsNullOrWhiteSpace(contenuMouvement))
             {
-                html.Append($"<div class='contenu-text'>{WebUtility.HtmlEncode(contenuMouvement)}</div>");
+                html.Append(
+                    "<div class='contenu-text'>" +
+                    WebUtility.HtmlEncode(contenuMouvement) +
+                    "</div>"
+                );
             }
 
-            // Fonction d'impression des tableaux
-            void GenererTableauMatériel(List<Dictionary<string, string>> items, string titreSection)
+            // ============================================================
+            // 8. FONCTIONS POUR LES ATTRIBUTS
+            // ============================================================
+
+            string Encoder(string valeur)
             {
-                if (items.Count == 0) return;
-
-                html.Append($"<div class='table-title'>{titreSection}</div>");
-                html.Append("<table><tr>");
-                // Colonnes orientées de droite à gauche (RTL)
-                html.Append("<th style='width:5%;'>QTE</th>");
-                html.Append("<th>Famille</th>");
-                html.Append("<th>Marque</th>");
-                html.Append("<th>Designniation de modèlle</th>");
-                html.Append("<th>Reference modèle</th>");
-                html.Append("<th>Etat</th>");
-                html.Append("<th>observation</th>");
-                html.Append("</tr>");
-
-                foreach (var r in items)
+                if (string.IsNullOrWhiteSpace(valeur))
                 {
-                    html.Append("<tr>");
-                    html.Append($"<td>{WebUtility.HtmlEncode(r["quantite"])}</td>");
-                    html.Append($"<td>{WebUtility.HtmlEncode(r["famille_nom"])}</td>");
-                    html.Append($"<td>{WebUtility.HtmlEncode(r["marque_nom"])}</td>");
-                    html.Append($"<td>{WebUtility.HtmlEncode(r["designation_modele"])}</td>");
-                    html.Append($"<td>{WebUtility.HtmlEncode(r["reference_modele"])}</td>");
-                    html.Append($"<td>{WebUtility.HtmlEncode(r["etat_a_la_mouvement"])}</td>");
-                    html.Append($"<td>{WebUtility.HtmlEncode(r["obs_ligne"])}</td>");
-                    html.Append("</tr>");
+                    return "";
                 }
-                html.Append("</table>");
+
+                return WebUtility.HtmlEncode(valeur.Trim());
             }
 
-            // Tableaux de matériel (Mأخوذ et المرجع)
-            GenererTableauMatériel(lignesSortie, "العتاد المأخوذ :");
-            GenererTableauMatériel(lignesEntree, "العتاد المرجع :");
+            void AjouterValeur(StringBuilder ligne, string libelle, string valeur, ref bool premier)
+            {
+                if (string.IsNullOrWhiteSpace(valeur))
+                {
+                    return;
+                }
 
-            // Remarque / Observation globale
+                if (!premier)
+                { ligne.Append("<span class='separator'>, </span>"); }
+
+                ligne.Append(
+                    WebUtility.HtmlEncode(libelle) +
+                    ":" +
+                    Encoder(valeur)
+                );
+
+                premier = false;
+            }
+
+            void GenererLignesMateriel(List<Dictionary<string, string>> items, string titreSection)
+            {
+                if (items == null || items.Count == 0)
+                {
+                    return;
+                }
+
+                html.Append(
+                    "<div class='section-title'>" +
+                    WebUtility.HtmlEncode(titreSection) +
+                    "</div>"
+                );
+
+                foreach (var item in items)
+                {
+                    var ligne = new StringBuilder();
+
+                    bool premier = true;
+
+                    // Le premier élément est toujours précédé par un tiret.
+                    ligne.Append("- ");
+
+                    /*
+                     * Ordre d'affichage :
+                     * QTE, Famille, Marque, Désignation,
+                     * Référence, État, Observation
+                     */
+                    AjouterValeur(
+                        ligne,
+                        "QTE",
+                        item["quantite"],
+                        ref premier
+                    );
+
+                    AjouterValeur(
+                        ligne,
+                        "Famille",
+                        item["famille_nom"],
+                        ref premier
+                    );
+
+                    AjouterValeur(
+                        ligne,
+                        "Marque",
+                        item["marque_nom"],
+                        ref premier
+                    );
+
+                    AjouterValeur(
+                        ligne,
+                        "Désignation modèle",
+                        item["designation_modele"],
+                        ref premier
+                    );
+
+                    AjouterValeur(
+                        ligne,
+                        "Réf",
+                        item["reference_modele"],
+                        ref premier
+                    );
+
+                    AjouterValeur(
+                        ligne,
+                        "État",
+                        item["etat_a_la_mouvement"],
+                        ref premier
+                    );
+
+                    AjouterValeur(
+                        ligne,
+                        "Observation",
+                        item["obs_ligne"],
+                        ref premier
+                    );
+
+                    // Ne pas afficher une ligne complètement vide.
+                    if (!premier)
+                    {
+                        html.Append(
+                            "<div class='mouvement-line'>" +
+                            ligne.ToString() +
+                            "</div>"
+                        );
+                    }
+                }
+            }
+
+            // ============================================================
+            // 9. AFFICHAGE DES LIGNES DE MOUVEMENT
+            // ============================================================
+
+            GenererLignesMateriel(
+                lignesSortie,
+                "العتاد المأخوذ :"
+            );
+
+            GenererLignesMateriel(
+                lignesEntree,
+                "العتاد المرجع :"
+            );
+
+            // ============================================================
+            // 10. OBSERVATION GÉNÉRALE
+            // ============================================================
+
             if (!string.IsNullOrWhiteSpace(obsMouvement))
             {
-                html.Append($"<div class='obs-section'>ملاحظة : {WebUtility.HtmlEncode(obsMouvement)}</div>");
+                html.Append(
+                    "<div class='obs-section'>" +
+                    WebUtility.HtmlEncode(obsMouvement) +
+                    "</div>"
+                );
             }
 
-            // Zone des Signatures
-            html.Append("<table class='signatures-table'><tr>");
-            html.Append("  <td>إمضاء المكلف(ة) بمكتب الوسائل العامة و المخزن :</td>");
-            html.Append("  <td>إمضاء المستلم(ة):</td>");
-            html.Append("</tr></table>");
+            // ============================================================
+            // 11. SIGNATURES
+            // ============================================================
 
-            html.Append("</body></html>");
+            html.Append(@"
+                            <table class='signatures-table'>
+                                <tr>
+                                    <td>
+                                        إمضاء المكلف(ة) بمكتب الوسائل العامة و المخزن :
+                                    </td>
 
-            // Sauvegarde du fichier temporaire et ouverture
-            string tempFile = Path.Combine(Path.GetTempPath(), $"bon_mouvement_{mouvementId}_{DateTime.Now:yyyyMMdd_HHmmss}.html");
-            File.WriteAllText(tempFile, html.ToString(), Encoding.UTF8);
-            Process.Start(new ProcessStartInfo(tempFile) { UseShellExecute = true });
+                                    <td>
+                                        إمضاء المستلم(ة):
+                                    </td>
+                                </tr>
+                            </table>
+                            ");
+
+            html.Append(@"
+                            </body>
+                            </html>
+                            ");
+
+            // ============================================================
+            // 12. ENREGISTREMENT ET OUVERTURE DU DOCUMENT
+            // ============================================================
+
+            string tempFile = Path.Combine(
+                Path.GetTempPath(),
+                $"bon_mouvement_{mouvementId}_{DateTime.Now:yyyyMMdd_HHmmss}.html"
+            );
+
+            File.WriteAllText(
+                tempFile,
+                html.ToString(),
+                Encoding.UTF8
+            );
+
+            Process.Start(
+                new ProcessStartInfo(tempFile)
+                {
+                    UseShellExecute = true
+                }
+            );
         }
 
         private void PeuplerListeFiltrageMVM()
@@ -711,13 +1151,18 @@ namespace InventoryApp
         // SECTION 5 : INVENTAIRES
         // =====================================================
 
+        // =====================================================
+        // SECTION 5 : INVENTAIRES
+        // =====================================================
+
         public void ChargerInventaires()
         {
             string sql = @"
                 SELECT 
                     i.id AS 'ID',
-                    i.structure AS 'Structure',
-                    i.bureau AS 'Bureau',
+                    CASE WHEN i.type_inventaire = 'Annuel' THEN '—' ELSE i.structure END AS 'Structure',
+                    CASE WHEN i.type_inventaire = 'Annuel' THEN '—' ELSE i.bureau END AS 'Bureau',
+                    i.type_inventaire AS 'Type',
                     i.date_inventaire AS 'Date'
                 FROM Inventaire i
                 ORDER BY i.id DESC";
@@ -810,25 +1255,20 @@ namespace InventoryApp
 
             if (colName == "colModifierINV")
             {
-                // TODO (à refaire un par un, pas maintenant) : FrmAjouterInventaire doit être
-                // adapté pour choisir un Modèle + une quantité dans ses lignes.
-                MessageBox.Show(
-                    "La modification d'inventaire est en cours de mise à jour suite au changement de structure (Modèle + quantité).\nElle sera réactivée prochainement.",
-                    "Fonctionnalité en cours de mise à jour", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                /* ANCIEN CODE (à réactiver une fois FrmAjouterInventaire adapté au Modèle) :
+                // Le type (Bureau / Annuel) est relu depuis la base par le formulaire
                 using (var frm = new FrmAjouterInventaire(this, inventaireId))
                 {
                     if (frm.ShowDialog(this) == DialogResult.OK)
                         ChargerInventaires();
                 }
-                */
             }
             else if (colName == "colSupprimerINV")
             {
+                string typeInv = grid.Rows[e.RowIndex].Cells["Type"].Value?.ToString() ?? "Bureau";
                 string bureau = grid.Rows[e.RowIndex].Cells["Bureau"].Value?.ToString() ?? "";
+                string cible = typeInv == "Annuel" ? "l'inventaire annuel" : $"la fiche d'inventaire du bureau '{bureau}'";
                 var confirm = MessageBox.Show(
-                    $"Voulez-vous vraiment supprimer la fiche d'inventaire du bureau '{bureau}' ?\nCette action supprimera également toutes ses lignes.",
+                    $"Voulez-vous vraiment supprimer {cible} ?\nCette action supprimera également toutes ses lignes.",
                     "Confirmer la suppression", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
 
                 if (confirm == DialogResult.Yes)
@@ -860,6 +1300,8 @@ namespace InventoryApp
             string structure = row.Cells["Structure"].Value?.ToString() ?? "";
             string bureau = row.Cells["Bureau"].Value?.ToString() ?? "";
             string date = row.Cells["Date"].Value?.ToString() ?? "";
+            bool annuel = (row.Cells["Type"].Value?.ToString() ?? "Bureau") == "Annuel";
+            if (annuel) { structure = ""; bureau = ""; }   // affichés '—' dans la grille
 
             // MIGRATION : Ligne_inventaire référence directement modele_id désormais.
             string sqlLignes = @"
@@ -897,11 +1339,14 @@ namespace InventoryApp
             html.Append("      <div>مديرية المواصلات السلكية و اللاسلكية الوطنية</div>");
             html.Append("      <div>مصلحة الادارة و الامداد / مكتب الوسائل العامة و المخزن.</div>");
             html.Append("    </div>");
-            html.Append("<div class='infos'>STRUCTURE : " + WebUtility.HtmlEncode(structure) + "</div>");
-            html.Append("<div class='infos'>BUREAU : " + WebUtility.HtmlEncode(bureau) + "</div>");
+            if (!annuel)
+            {
+                html.Append("<div class='infos'>STRUCTURE : " + WebUtility.HtmlEncode(structure) + "</div>");
+                html.Append("<div class='infos'>BUREAU : " + WebUtility.HtmlEncode(bureau) + "</div>");
+            }
             html.Append("<div class='date'>" + WebUtility.HtmlEncode(date) + "</div>");
 
-            html.Append("<div class='titre-box'><span>FICHE D'INVENTAIRE</span></div>");
+            html.Append("<div class='titre-box'><span>" + (annuel ? "FICHE D'INVENTAIRE ANNUEL" : "FICHE D'INVENTAIRE") + "</span></div>");
 
             html.Append("<table><tr><th style='width:6%;'>N°</th><th>DESIGNATION</th><th style='width:8%;'>QTE</th><th>OBSERVATION</th></tr>");
 
@@ -970,24 +1415,25 @@ namespace InventoryApp
         private void filtreTableINVTextBox_TextChanged(object sender, EventArgs e) => AppliquerFiltreINV();
         private void listeDeFiltrageINVComboBox_SelectedIndexChanged(object sender, EventArgs e) => AppliquerFiltreINV();
 
+        // Inventaire de bureau (même formulaire, type = Bureau)
         private void btnNouveauInventaire_Click(object sender, EventArgs e)
-        {
-            // TODO (à refaire un par un, pas maintenant) : FrmAjouterInventaire doit être
-            // adapté pour choisir un Modèle + une quantité dans ses lignes.
-            MessageBox.Show(
-                "La création d'inventaire est en cours de mise à jour suite au changement de structure (Modèle + quantité).\nElle sera réactivée prochainement.",
-                "Fonctionnalité en cours de mise à jour", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            => OuvrirNouvelInventaire(TypeInventaire.Bureau);
 
-            /* ANCIEN CODE (à réactiver une fois FrmAjouterInventaire adapté au Modèle) :
-            using (var frm = new FrmAjouterInventaire(this))
+        // Inventaire annuel (même formulaire, type = Annuel : lignes chargées depuis le stock)
+        private void btnNouvInvAnne_Click(object sender, EventArgs e)
+            => OuvrirNouvelInventaire(TypeInventaire.Annuel);
+
+        private void OuvrirNouvelInventaire(TypeInventaire type)
+        {
+            using (var frm = new FrmAjouterInventaire(this, null, type))
             {
                 if (frm.ShowDialog(this) == DialogResult.OK && frm.InventaireEnregistre)
-                {
                     ChargerInventaires();
-                }
             }
-            */
         }
+
+
+
         //******************************************************************
         #region Authentification & Gestion utilisateurs
         //******************************************************************
@@ -1132,11 +1578,6 @@ namespace InventoryApp
             ChargerOngletActifStock();
         }
 
-
-
-
-
-
-
+       
     }
 }

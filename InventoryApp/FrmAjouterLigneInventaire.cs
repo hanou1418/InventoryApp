@@ -9,11 +9,11 @@ using Microsoft.Data.Sqlite;
 
 namespace InventoryApp
 {
+    // Ligne temporaire : référence directement un MODÈLE (plus d'équipement)
     public class LigneInventaireTemp
     {
-        public int EquipementId { get; set; }
+        public int ModeleId { get; set; }
         public string AffichageModele { get; set; } = "";
-        public string AffichageEquipement { get; set; } = "";
         public int Quantite { get; set; } = 1;
         public string? Observation { get; set; }
     }
@@ -29,19 +29,23 @@ namespace InventoryApp
         private readonly LigneInventaireTemp? _ligneAModifier;
         private bool EnModeEdition => _ligneAModifier != null;
 
+        // Sert à ne présélectionner la ligne à modifier qu'au premier chargement
+        private bool _premierChargement = true;
+
         private Guna2ComboBox cmbModele = null!;
-        private Guna2ComboBox cmbEquipement = null!;
+        private Guna2Button btnNouveauModele = null!;
         private Guna2NumericUpDown numQuantite = null!;
         private Guna2TextBox txtObservation = null!;
         private Guna2Button btnValider = null!;
         private Guna2Button btnAnnuler = null!;
+        private readonly ToolTip _toolTip = new ToolTip();
 
         public FrmAjouterLigneInventaire(LigneInventaireTemp? ligneAModifier = null)
         {
             _ligneAModifier = ligneAModifier;
 
             Text = EnModeEdition ? "Modifier la ligne d'inventaire" : "Ajouter une ligne d'inventaire";
-            Size = new Size(460, 480);
+            Size = new Size(460, 380);
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.None;
             BackColor = Color.White;
@@ -52,14 +56,7 @@ namespace InventoryApp
 
         private void ConstruireControles()
         {
-            // Panel En-tête
-            var panelHeader = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 55,
-                BackColor = _darkNavy
-            };
-
+            var panelHeader = new Panel { Dock = DockStyle.Top, Height = 55, BackColor = _darkNavy };
             var lblTitre = new Label
             {
                 Text = EnModeEdition ? "MODIFIER LIGNE D'INVENTAIRE" : "AJOUTER LIGNE D'INVENTAIRE",
@@ -91,15 +88,39 @@ namespace InventoryApp
                 return l;
             }
 
+            // --- Modèle + bouton "+" ---
             MakeLabel("Modèle * (Catégorie · Marque · Désignation · Référence)");
-            cmbModele = new Guna2ComboBox { Left = marge, Top = y, Width = largeur, Height = 36, BorderRadius = 6, DropDownStyle = ComboBoxStyle.DropDownList };
-            cmbModele.SelectedIndexChanged += (s, e) => ChargerEquipementsDuModele(null);
-            Controls.Add(cmbModele); y += 42;
+            cmbModele = new Guna2ComboBox
+            {
+                Left = marge,
+                Top = y,
+                Width = largeur - 46,   // on laisse la place au bouton
+                Height = 36,
+                BorderRadius = 6,
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            Controls.Add(cmbModele);
 
-            MakeLabel("Équipement * (ID · Statut · État · Code-barre · N° Série)");
-            cmbEquipement = new Guna2ComboBox { Left = marge, Top = y, Width = largeur, Height = 36, BorderRadius = 6, DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
-            Controls.Add(cmbEquipement); y += 42;
+            btnNouveauModele = new Guna2Button
+            {
+                Text = "+",
+                Left = marge + largeur - 40,
+                Top = y,
+                Width = 40,
+                Height = 36,
+                BorderRadius = 6,
+                FillColor = _primaryBlue,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnNouveauModele.Click += BtnNouveauModele_Click;
+            Controls.Add(btnNouveauModele);
+            _toolTip.SetToolTip(btnNouveauModele, "Créer un nouveau modèle (article)");
 
+            y += 42;
+
+            // --- Quantité ---
             MakeLabel("Quantité *");
             numQuantite = new Guna2NumericUpDown
             {
@@ -115,10 +136,12 @@ namespace InventoryApp
             };
             Controls.Add(numQuantite); y += 42;
 
+            // --- Observation ---
             MakeLabel("Observation (optionnel)");
             txtObservation = new Guna2TextBox { Left = marge, Top = y, Width = largeur, Height = 36, BorderRadius = 6 };
             Controls.Add(txtObservation); y += 55;
 
+            // --- Boutons ---
             btnValider = new Guna2Button
             {
                 Text = EnModeEdition ? "Enregistrer" : "Ajouter à la liste",
@@ -132,7 +155,6 @@ namespace InventoryApp
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
-
             btnAnnuler = new Guna2Button
             {
                 Text = "Annuler",
@@ -157,99 +179,60 @@ namespace InventoryApp
         {
             string sql = @"
                 SELECT m.id,
-                       TRIM(COALESCE(c.designation,'') || ' ' || COALESCE(mq.designation,'') || ' ' || m.designation || ' ' || COALESCE(m.reference,'')) AS affichage
+                       TRIM(COALESCE(c.designation,'') || ' ' || COALESCE(mq.designation,'') || ' ' ||
+                            m.designation || ' ' || COALESCE(m.reference,'')) AS affichage
                 FROM Modele m
                 LEFT JOIN Categorie c ON m.categorie_id = c.id
                 LEFT JOIN Marque mq ON m.marque_id = mq.id
-                ORDER BY m.designation";
+                ORDER BY c.designation, m.designation";
 
             var t = DatabaseHelper.ExecuteQuery(sql);
             cmbModele.DataSource = t;
             cmbModele.DisplayMember = "affichage";
             cmbModele.ValueMember = "id";
 
-            if (EnModeEdition && _ligneAModifier != null)
+            // Présélection uniquement au premier chargement (ne pas écraser après création d'un modèle)
+            if (_premierChargement && EnModeEdition && _ligneAModifier != null)
             {
-                var infosEq = DatabaseHelper.ExecuteQuery(
-                    "SELECT modele_id FROM Equipement WHERE id = @id",
-                    new SqliteParameter("@id", _ligneAModifier.EquipementId));
-
-                if (infosEq.Rows.Count > 0)
-                {
-                    int modeleId = Convert.ToInt32(infosEq.Rows[0]["modele_id"]);
-                    cmbModele.SelectedValue = modeleId;
-                    ChargerEquipementsDuModele(_ligneAModifier.EquipementId);
-                }
-
-                numQuantite.Value = _ligneAModifier.Quantite;
+                // SQLite renvoie des Int64 : la présélection doit être un long
+                cmbModele.SelectedValue = (long)_ligneAModifier.ModeleId;
+                numQuantite.Value = Math.Max(1, _ligneAModifier.Quantite);
                 txtObservation.Text = _ligneAModifier.Observation ?? "";
             }
+            _premierChargement = false;
         }
 
-        private void ChargerEquipementsDuModele(int? preselectionnerId)
+        private void BtnNouveauModele_Click(object? sender, EventArgs e)
         {
-            cmbEquipement.Enabled = false;
-            cmbEquipement.DataSource = null;
-
-            if (cmbModele.SelectedValue == null) return;
-
-            // Déballage sécurisé pour éviter le DataRowView
-            int modeleId;
-            if (cmbModele.SelectedValue is DataRowView drv)
+            using (var frm = new FrmAjouterModele())
             {
-                modeleId = Convert.ToInt32(drv["id"]);
+                if (frm.ShowDialog(this) == DialogResult.OK)
+                {
+                    ChargerModeles();
+                    // Sélectionne automatiquement le modèle qui vient d'être créé
+                    // (retirez le cast (long) si ModeleIdResultat est déjà un long)
+                    cmbModele.SelectedValue = (long)frm.ModeleIdResultat;
+                }
             }
-            else
-            {
-                modeleId = Convert.ToInt32(cmbModele.SelectedValue);
-            }
-
-            string sql = @"
-        SELECT id, 
-               id || '  |  ' || 
-               COALESCE(code_barre, '-') || '  |  ' || 
-               COALESCE(numero_serie, '-') || '  |  ' || 
-               COALESCE(etat, '-') || '  |  ' || 
-               COALESCE(statut, '-') || '  |  ' || 
-               COALESCE(observations, '-') AS affichage
-        FROM Equipement
-        WHERE modele_id = @modeleId
-        ORDER BY id DESC";
-
-            var t = DatabaseHelper.ExecuteQuery(sql, new SqliteParameter("@modeleId", modeleId));
-
-            if (t.Rows.Count == 0) return;
-
-            cmbEquipement.DataSource = t;
-            cmbEquipement.DisplayMember = "affichage";
-            cmbEquipement.ValueMember = "id";
-            cmbEquipement.Enabled = true;
-
-            if (preselectionnerId.HasValue)
-                cmbEquipement.SelectedValue = preselectionnerId.Value;
         }
 
         private void BtnValider_Click(object? sender, EventArgs e)
         {
-            if (cmbModele.SelectedValue == null || cmbEquipement.SelectedValue == null)
+            if (cmbModele.SelectedValue == null)
             {
-                MessageBox.Show("Le choix d'un équipement est obligatoire pour ajouter une ligne.", "Champ manquant",
+                MessageBox.Show("Le choix d'un modèle est obligatoire pour ajouter une ligne.", "Champ manquant",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            if (numQuantite.Value < 1)
-            {
-                MessageBox.Show("La quantité doit être au moins égale à 1.", "Quantité invalide",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            int modeleId = cmbModele.SelectedValue is DataRowView drv
+                ? Convert.ToInt32(drv["id"])
+                : Convert.ToInt32(cmbModele.SelectedValue);
 
             LigneResultat = new LigneInventaireTemp
             {
-                EquipementId = Convert.ToInt32(cmbEquipement.SelectedValue),
+                ModeleId = modeleId,
                 AffichageModele = cmbModele.Text,
-                AffichageEquipement = cmbEquipement.Text,
                 Quantite = (int)numQuantite.Value,
                 Observation = string.IsNullOrWhiteSpace(txtObservation.Text) ? null : txtObservation.Text.Trim()
             };

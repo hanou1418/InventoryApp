@@ -11,9 +11,32 @@ using Microsoft.Data.Sqlite;
 
 namespace InventoryApp
 {
+    public enum TypeInventaire { Bureau, Annuel }
+
+    /// <summary>Migration idempotente : ajoute Inventaire.type_inventaire si absente.</summary>
+    public static class InventaireSchema
+    {
+        public static void EnsureSchema()
+        {
+            // On ne lit que la colonne "name" : PRAGMA table_info renvoie aussi dflt_value,
+            // dont le type est mal deviné par DataTable.Load (erreur "Expected type is Byte[]").
+            var cols = DatabaseHelper.ExecuteQuery("SELECT name FROM pragma_table_info('Inventaire')");
+            foreach (DataRow r in cols.Rows)
+                if (string.Equals(r["name"]?.ToString(), "type_inventaire", StringComparison.OrdinalIgnoreCase))
+                    return;
+
+            DatabaseHelper.ExecuteNonQuery(
+                "ALTER TABLE Inventaire ADD COLUMN type_inventaire TEXT NOT NULL DEFAULT 'Bureau' " +
+                "CHECK (type_inventaire IN ('Bureau','Annuel'))");
+        }
+
+        public static string ToDb(TypeInventaire t) => t == TypeInventaire.Annuel ? "Annuel" : "Bureau";
+        public static TypeInventaire FromDb(string? s) =>
+            string.Equals(s, "Annuel", StringComparison.OrdinalIgnoreCase) ? TypeInventaire.Annuel : TypeInventaire.Bureau;
+    }
+
     public class FrmAjouterInventaire : Form
     {
-        // Palette de couleurs personnalisée identique aux formulaires de mouvement
         private readonly Color _primaryBlue = Color.FromArgb(37, 99, 235);
         private readonly Color _darkNavy = Color.FromArgb(24, 30, 54);
         private readonly Color _lightGray = Color.FromArgb(240, 242, 245);
@@ -24,22 +47,41 @@ namespace InventoryApp
         private readonly int? _inventaireIdEnEdition;
         private bool EnModeEdition => _inventaireIdEnEdition.HasValue;
 
+        // Type de fiche : fixé à l'ouverture (ou relu depuis la base en modification)
+        private TypeInventaire _type;
+        private bool EstAnnuel => _type == TypeInventaire.Annuel;
+
         private readonly BindingList<LigneInventaireTemp> _lignes = new BindingList<LigneInventaireTemp>();
 
+        private const int MargeG = 25, MargeD = 420, LargeurChamp = 370;
+
+        private Label lblStructure = null!, lblBureau = null!, lblDate = null!, lblLignes = null!;
         private Guna2TextBox txtStructure = null!;
         private Guna2TextBox txtBureau = null!;
         private Guna2DateTimePicker dtpDateInventaire = null!;
-
         private Guna2DataGridView dgvLignes = null!;
         private Guna2Button btnAjouterLigne = null!;
         private Guna2Button btnEnregistrer = null!;
         private Guna2Button btnAnnuler = null!;
         private Label lblTitre = null!;
 
-        public FrmAjouterInventaire(Form1? mainForm, int? inventaireIdEnEdition = null)
+        public FrmAjouterInventaire(Form1? mainForm, int? inventaireIdEnEdition = null,
+                                    TypeInventaire type = TypeInventaire.Bureau)
         {
             _mainForm = mainForm;
             _inventaireIdEnEdition = inventaireIdEnEdition;
+
+            InventaireSchema.EnsureSchema();
+
+            // En modification, le type vient de la base (pas du bouton)
+            if (EnModeEdition)
+            {
+                var t = DatabaseHelper.ExecuteQuery(
+                    "SELECT type_inventaire FROM Inventaire WHERE id = @id",
+                    new SqliteParameter("@id", inventaireIdEnEdition!.Value));
+                _type = t.Rows.Count > 0 ? InventaireSchema.FromDb(t.Rows[0][0]?.ToString()) : type;
+            }
+            else _type = type;
 
             Text = EnModeEdition ? "Modifier la fiche d'inventaire" : "Nouvelle fiche d'inventaire";
             Size = new Size(820, 620);
@@ -48,22 +90,27 @@ namespace InventoryApp
             BackColor = Color.White;
 
             ConstruireControles();
-            Load += (s, e) => { if (EnModeEdition) ChargerDonneesExistantes(); };
+            PositionnerControles();
+
+            Load += (s, e) =>
+            {
+                if (EnModeEdition) ChargerDonneesExistantes();
+                else if (EstAnnuel) ChargerLignesAutomatiques();
+            };
+        }
+
+        private string TitreFiche()
+        {
+            string prefixe = EnModeEdition ? "MODIFIER" : "NOUVELLE";
+            return EstAnnuel ? $"{prefixe} FICHE D'INVENTAIRE ANNUEL" : $"{prefixe} FICHE D'INVENTAIRE";
         }
 
         private void ConstruireControles()
         {
-            // Panel En-tête
-            var panelHeader = new Panel
-            {
-                Dock = DockStyle.Top,
-                Height = 55,
-                BackColor = _darkNavy
-            };
-
+            var panelHeader = new Panel { Dock = DockStyle.Top, Height = 55, BackColor = _darkNavy };
             lblTitre = new Label
             {
-                Text = EnModeEdition ? "MODIFIER LA FICHE D'INVENTAIRE" : "NOUVELLE FICHE D'INVENTAIRE",
+                Text = TitreFiche(),
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 Dock = DockStyle.Fill,
@@ -72,56 +119,31 @@ namespace InventoryApp
             panelHeader.Controls.Add(lblTitre);
             Controls.Add(panelHeader);
 
-            const int margeG = 25, margeD = 420, largeurChamp = 370;
-            int y = 70;
-
-            Label MakeLabel(string texte, int left)
+            Label MakeLabel(string texte, int width = LargeurChamp, float size = 9F)
             {
                 var l = new Label
                 {
                     Text = texte,
-                    Left = left,
-                    Top = y,
-                    Width = largeurChamp,
-                    Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                    Width = width,
+                    Font = new Font("Segoe UI", size, FontStyle.Bold),
                     ForeColor = _darkNavy
                 };
                 Controls.Add(l);
                 return l;
             }
 
-            MakeLabel("Structure *", margeG);
-            txtStructure = new Guna2TextBox
-            {
-                Left = margeG,
-                Top = y + 20,
-                Width = largeurChamp,
-                Height = 36,
-                BorderRadius = 6,
-                PlaceholderText = "Ex: SERVICE MAINTENANCE"
-            };
+            lblStructure = MakeLabel("Structure *");
+            txtStructure = new Guna2TextBox { Width = LargeurChamp, Height = 36, BorderRadius = 6, PlaceholderText = "Ex: SERVICE MAINTENANCE" };
             Controls.Add(txtStructure);
 
-            MakeLabel("Bureau *", margeD);
-            txtBureau = new Guna2TextBox
-            {
-                Left = margeD,
-                Top = y + 20,
-                Width = largeurChamp,
-                Height = 36,
-                BorderRadius = 6,
-                PlaceholderText = "Ex: RESEAUX"
-            };
+            lblBureau = MakeLabel("Bureau *");
+            txtBureau = new Guna2TextBox { Width = LargeurChamp, Height = 36, BorderRadius = 6, PlaceholderText = "Ex: RESEAUX" };
             Controls.Add(txtBureau);
 
-            y += 65;
-
-            MakeLabel("Date de l'inventaire", margeG);
+            lblDate = MakeLabel("Date de l'inventaire");
             dtpDateInventaire = new Guna2DateTimePicker
             {
-                Left = margeG,
-                Top = y + 20,
-                Width = largeurChamp,
+                Width = LargeurChamp,
                 Height = 36,
                 BorderRadius = 6,
                 Format = DateTimePickerFormat.Short,
@@ -131,24 +153,11 @@ namespace InventoryApp
             };
             Controls.Add(dtpDateInventaire);
 
-            y += 75;
-
-            var lblLignes = new Label
-            {
-                Text = "LIGNES D'INVENTAIRE",
-                Left = margeG,
-                Top = y + 5,
-                Width = 250,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = _darkNavy
-            };
-            Controls.Add(lblLignes);
+            lblLignes = MakeLabel("LIGNES D'INVENTAIRE", 250, 10F);
 
             btnAjouterLigne = new Guna2Button
             {
                 Text = "+ Ajouter une ligne",
-                Left = margeD + largeurChamp - 170,
-                Top = y,
                 Width = 170,
                 Height = 36,
                 BorderRadius = 6,
@@ -160,13 +169,10 @@ namespace InventoryApp
             btnAjouterLigne.Click += BtnAjouterLigne_Click;
             Controls.Add(btnAjouterLigne);
 
-            y += 45;
-
             dgvLignes = new Guna2DataGridView
             {
-                Left = margeG,
-                Top = y,
-                Width = margeD + largeurChamp - margeG,
+                Left = MargeG,
+                Width = MargeD + LargeurChamp - MargeG,
                 Height = 260,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
@@ -176,37 +182,30 @@ namespace InventoryApp
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
             };
-
             dgvLignes.ThemeStyle.HeaderStyle.BackColor = _darkNavy;
             dgvLignes.ThemeStyle.HeaderStyle.ForeColor = Color.White;
             dgvLignes.ThemeStyle.HeaderStyle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             dgvLignes.ThemeStyle.RowsStyle.SelectionBackColor = Color.FromArgb(220, 235, 252);
             dgvLignes.ThemeStyle.RowsStyle.SelectionForeColor = _darkNavy;
 
-            dgvLignes.Columns.Add(new DataGridViewTextBoxColumn { Name = "colModele", HeaderText = "Modèle", DataPropertyName = "AffichageModele", Width = 220 });
-            dgvLignes.Columns.Add(new DataGridViewTextBoxColumn { Name = "colEquip", HeaderText = "Équipement", DataPropertyName = "AffichageEquipement", Width = 230 });
+            dgvLignes.Columns.Add(new DataGridViewTextBoxColumn { Name = "colModele", HeaderText = "Modèle", DataPropertyName = "AffichageModele", Width = 340 });
             dgvLignes.Columns.Add(new DataGridViewTextBoxColumn { Name = "colQte", HeaderText = "Qté", DataPropertyName = "Quantite", Width = 50 });
-            dgvLignes.Columns.Add(new DataGridViewTextBoxColumn { Name = "colObs", HeaderText = "Observation", DataPropertyName = "Observation", Width = 120 });
+            dgvLignes.Columns.Add(new DataGridViewTextBoxColumn { Name = "colObs", HeaderText = "Observation", DataPropertyName = "Observation", Width = 190 });
             dgvLignes.Columns.Add(new DataGridViewTextBoxColumn { Name = "colModifierLigne", HeaderText = "Modifier", Width = 70, ReadOnly = true });
             dgvLignes.Columns.Add(new DataGridViewTextBoxColumn { Name = "colSupprimerLigne", HeaderText = "Supprimer", Width = 75, ReadOnly = true });
 
             dgvLignes.CellMouseClick += DgvLignes_CellMouseClick;
             dgvLignes.CellPainting += DgvLignes_CellPainting;
-
             dgvLignes.MouseMove += (s, e) => dgvLignes.Invalidate();
             dgvLignes.MouseDown += (s, e) => dgvLignes.Invalidate();
             dgvLignes.MouseUp += (s, e) => dgvLignes.Invalidate();
-
             dgvLignes.DataSource = _lignes;
             Controls.Add(dgvLignes);
-
-            y += 275;
 
             btnEnregistrer = new Guna2Button
             {
                 Text = EnModeEdition ? "Mettre à jour" : "Enregistrer l'inventaire",
-                Left = margeD + largeurChamp - 320,
-                Top = y,
+                Left = MargeD + LargeurChamp - 320,
                 Width = 210,
                 Height = 42,
                 BorderRadius = 6,
@@ -215,12 +214,10 @@ namespace InventoryApp
                 Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
-
             btnAnnuler = new Guna2Button
             {
                 Text = "Annuler",
-                Left = margeD + largeurChamp - 100,
-                Top = y,
+                Left = MargeD + LargeurChamp - 100,
                 Width = 100,
                 Height = 42,
                 BorderRadius = 6,
@@ -229,11 +226,75 @@ namespace InventoryApp
                 Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
-
             btnEnregistrer.Click += BtnEnregistrer_Click;
             btnAnnuler.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
             Controls.Add(btnEnregistrer);
             Controls.Add(btnAnnuler);
+        }
+
+        /// <summary>Place les contrôles selon le type : Structure/Bureau masqués pour l'annuel.</summary>
+        private void PositionnerControles()
+        {
+            int y = 70;
+
+            lblStructure.Visible = txtStructure.Visible = lblBureau.Visible = txtBureau.Visible = !EstAnnuel;
+
+            if (!EstAnnuel)
+            {
+                lblStructure.Left = MargeG; lblStructure.Top = y;
+                txtStructure.Left = MargeG; txtStructure.Top = y + 20;
+                lblBureau.Left = MargeD; lblBureau.Top = y;
+                txtBureau.Left = MargeD; txtBureau.Top = y + 20;
+                y += 65;
+            }
+
+            lblDate.Left = MargeG; lblDate.Top = y;
+            dtpDateInventaire.Left = MargeG; dtpDateInventaire.Top = y + 20;
+            y += 75;
+
+            lblLignes.Left = MargeG; lblLignes.Top = y + 5;
+            btnAjouterLigne.Left = MargeD + LargeurChamp - 170; btnAjouterLigne.Top = y;
+            y += 45;
+
+            dgvLignes.Top = y;
+            y += 275;
+
+            btnEnregistrer.Top = y;
+            btnAnnuler.Top = y;
+
+            Height = y + 90;
+        }
+
+        // ------------------------------------------------------------------
+        // Inventaire annuel : lignes générées automatiquement (modèles en stock)
+        // ------------------------------------------------------------------
+        private void ChargerLignesAutomatiques()
+        {
+            // Ligne_inventaire.quantite a CHECK(quantite > 0) : on ne charge que les modèles en stock (> 0)
+            string sql = @"
+                SELECT m.id, m.quantite,
+                       TRIM(COALESCE(c.designation,'') || ' ' || COALESCE(mq.designation,'') || ' ' ||
+                            m.designation || ' ' || COALESCE(m.reference,'')) AS affichage
+                FROM Modele m
+                LEFT JOIN Categorie c ON m.categorie_id = c.id
+                LEFT JOIN Marque mq ON m.marque_id = mq.id
+                WHERE m.quantite > 0
+                ORDER BY c.designation, m.designation";
+
+            var t = DatabaseHelper.ExecuteQuery(sql);
+
+            _lignes.Clear();
+            foreach (DataRow r in t.Rows)
+            {
+                _lignes.Add(new LigneInventaireTemp
+                {
+                    ModeleId = Convert.ToInt32(r["id"]),
+                    AffichageModele = r["affichage"]?.ToString() ?? "",
+                    Quantite = 1,                                   // valeur minimale autorisée
+                    Observation = $"[QTE: {Convert.ToInt32(r["quantite"])}]"  // affichage initial, modifiable
+                });
+            }
+            RafraichirGrille();
         }
 
         private void DgvLignes_CellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
@@ -273,7 +334,6 @@ namespace InventoryApp
 
             using (var brush = new SolidBrush(currentBg))
                 e.Graphics.FillRectangle(brush, btnRect);
-
             using (var pen = new Pen(borderColor))
                 e.Graphics.DrawRectangle(pen, btnRect);
 
@@ -290,7 +350,6 @@ namespace InventoryApp
                     e.Graphics.DrawImage(img, new Rectangle(x, y, iconSize, iconSize));
                 }
             }
-
             e.Handled = true;
         }
 
@@ -319,20 +378,16 @@ namespace InventoryApp
             if (DateTime.TryParse(row["date_inventaire"].ToString(), out var d))
                 dtpDateInventaire.Value = d;
 
-            // Requête nettoyée pour éviter toute syntaxe SQL invalide
             string sqlLignes = @"
-                SELECT 
-                    li.equipement_id, 
-                    li.quantite, 
-                    li.observation,
-                    (COALESCE(c.designation, '') || ' ' || COALESCE(mq.designation, '') || ' ' || COALESCE(m.designation, '') || ' ' || COALESCE(m.reference, '')) AS affichage_modele,
-                    (e.id || ' | ' || COALESCE(e.statut, '-') || ' | ' || COALESCE(e.etat, '-') || ' | ' || COALESCE(e.code_barre, '-') || ' | ' || COALESCE(e.numero_serie, '-')) AS affichage_eq
+                SELECT li.modele_id, li.quantite, li.observation,
+                       TRIM(COALESCE(c.designation,'') || ' ' || COALESCE(mq.designation,'') || ' ' ||
+                            COALESCE(m.designation,'') || ' ' || COALESCE(m.reference,'')) AS affichage_modele
                 FROM Ligne_inventaire li
-                INNER JOIN Equipement e ON li.equipement_id = e.id
-                INNER JOIN Modele m ON e.modele_id = m.id
+                INNER JOIN Modele m ON li.modele_id = m.id
                 LEFT JOIN Marque mq ON m.marque_id = mq.id
                 LEFT JOIN Categorie c ON m.categorie_id = c.id
-                WHERE li.inventaire_id = @id";
+                WHERE li.inventaire_id = @id
+                ORDER BY li.id";
 
             var tLignes = DatabaseHelper.ExecuteQuery(sqlLignes, new SqliteParameter("@id", _inventaireIdEnEdition!.Value));
 
@@ -341,15 +396,15 @@ namespace InventoryApp
             {
                 _lignes.Add(new LigneInventaireTemp
                 {
-                    EquipementId = Convert.ToInt32(r["equipement_id"]),
-                    AffichageModele = r["affichage_modele"]?.ToString()?.Trim() ?? "",
-                    AffichageEquipement = r["affichage_eq"]?.ToString() ?? "",
+                    ModeleId = Convert.ToInt32(r["modele_id"]),
+                    AffichageModele = r["affichage_modele"]?.ToString() ?? "",
                     Quantite = Convert.ToInt32(r["quantite"]),
                     Observation = r["observation"] == DBNull.Value ? null : r["observation"].ToString()
                 });
             }
             RafraichirGrille();
         }
+
         private void BtnAjouterLigne_Click(object? sender, EventArgs e)
         {
             using (var frm = new FrmAjouterLigneInventaire())
@@ -388,7 +443,8 @@ namespace InventoryApp
 
         private void BtnEnregistrer_Click(object? sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtStructure.Text) || string.IsNullOrWhiteSpace(txtBureau.Text))
+            // Bureau : structure + bureau obligatoires. Annuel : champs masqués -> valeur vide en base.
+            if (!EstAnnuel && (string.IsNullOrWhiteSpace(txtStructure.Text) || string.IsNullOrWhiteSpace(txtBureau.Text)))
             {
                 MessageBox.Show("Structure et Bureau sont obligatoires.", "Champs manquants",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -400,6 +456,11 @@ namespace InventoryApp
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+
+            string structure = EstAnnuel ? "" : txtStructure.Text.Trim();
+            string bureau = EstAnnuel ? "" : txtBureau.Text.Trim();
+            string typeDb = InventaireSchema.ToDb(_type);
+            string dateDb = dtpDateInventaire.Value.ToString("yyyy-MM-dd");
 
             using (var conn = DatabaseHelper.GetConnection())
             {
@@ -420,9 +481,9 @@ namespace InventoryApp
                                     UPDATE Inventaire
                                     SET structure=@structure, bureau=@bureau, date_inventaire=@date
                                     WHERE id=@id;";
-                                cmd.Parameters.AddWithValue("@structure", txtStructure.Text.Trim());
-                                cmd.Parameters.AddWithValue("@bureau", txtBureau.Text.Trim());
-                                cmd.Parameters.AddWithValue("@date", dtpDateInventaire.Value.ToString("yyyy-MM-dd"));
+                                cmd.Parameters.AddWithValue("@structure", structure);
+                                cmd.Parameters.AddWithValue("@bureau", bureau);
+                                cmd.Parameters.AddWithValue("@date", dateDb);
                                 cmd.Parameters.AddWithValue("@id", inventaireId);
                                 cmd.ExecuteNonQuery();
                             }
@@ -441,12 +502,13 @@ namespace InventoryApp
                             {
                                 cmd.Transaction = tx;
                                 cmd.CommandText = @"
-                                    INSERT INTO Inventaire (structure, bureau, date_inventaire)
-                                    VALUES (@structure, @bureau, @date);
+                                    INSERT INTO Inventaire (structure, bureau, date_inventaire, type_inventaire)
+                                    VALUES (@structure, @bureau, @date, @type);
                                     SELECT last_insert_rowid();";
-                                cmd.Parameters.AddWithValue("@structure", txtStructure.Text.Trim());
-                                cmd.Parameters.AddWithValue("@bureau", txtBureau.Text.Trim());
-                                cmd.Parameters.AddWithValue("@date", dtpDateInventaire.Value.ToString("yyyy-MM-dd"));
+                                cmd.Parameters.AddWithValue("@structure", structure);
+                                cmd.Parameters.AddWithValue("@bureau", bureau);
+                                cmd.Parameters.AddWithValue("@date", dateDb);
+                                cmd.Parameters.AddWithValue("@type", typeDb);
                                 inventaireId = (long)cmd.ExecuteScalar()!;
                             }
                         }
@@ -457,10 +519,10 @@ namespace InventoryApp
                             {
                                 cmd.Transaction = tx;
                                 cmd.CommandText = @"
-                                    INSERT INTO Ligne_inventaire (inventaire_id, equipement_id, quantite, observation)
-                                    VALUES (@inv, @eq, @qte, @obs);";
+                                    INSERT INTO Ligne_inventaire (inventaire_id, modele_id, quantite, observation)
+                                    VALUES (@inv, @mod, @qte, @obs);";
                                 cmd.Parameters.AddWithValue("@inv", inventaireId);
-                                cmd.Parameters.AddWithValue("@eq", ligne.EquipementId);
+                                cmd.Parameters.AddWithValue("@mod", ligne.ModeleId);
                                 cmd.Parameters.AddWithValue("@qte", ligne.Quantite);
                                 cmd.Parameters.AddWithValue("@obs", (object?)ligne.Observation ?? DBNull.Value);
                                 cmd.ExecuteNonQuery();
@@ -474,7 +536,7 @@ namespace InventoryApp
                         tx.Rollback();
                         MessageBox.Show(
                             "Enregistrement annulé : aucune donnée n'a été modifiée.\n\n" +
-                            "Cause probable : un équipement référencé a été supprimé entre-temps.\n\n" +
+                            "Cause probable : un modèle référencé a été supprimé entre-temps.\n\n" +
                             "Détail : " + ex.Message,
                             "Erreur base de données", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         return;

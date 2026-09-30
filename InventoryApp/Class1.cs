@@ -29,6 +29,10 @@ namespace InventoryApp.Data
         {
             InitialiserEmplacementBaseDonnees();
 
+            // Migration du schéma AVANT toute requête (la base AppData existe déjà et n'est
+            // jamais remplacée par la base livrée avec l'application).
+            MigrerSchema();
+
             // Sauvegarde automatique au démarrage — au maximum une fois par 24h,
             // pour ne pas créer une sauvegarde à chaque ouverture de l'app dans la journée.
             SauvegarderAutomatiquementSiNecessaire(TimeSpan.FromHours(24));
@@ -57,6 +61,46 @@ namespace InventoryApp.Data
                 {
                     System.Diagnostics.Debug.WriteLine("ATTENTION : aucun fichier modèle trouvé à " + cheminModele);
                 }
+            }
+        }
+
+        // Migrations idempotentes : ajoutent ce qui manque à une base déjà existante.
+        // Utilise une connexion directe (pas ExecuteQuery) car appelée depuis le constructeur statique.
+        private static void MigrerSchema()
+        {
+            try
+            {
+                using (var conn = new SqliteConnection(ConnectionString))
+                {
+                    conn.Open();
+
+                    bool colonnePresente = false;
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "PRAGMA table_info(Inventaire);";
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                                if (string.Equals(r["name"]?.ToString(), "type_inventaire", StringComparison.OrdinalIgnoreCase))
+                                    colonnePresente = true;
+                        }
+                    }
+
+                    if (!colonnePresente)
+                    {
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandText =
+                                "ALTER TABLE Inventaire ADD COLUMN type_inventaire TEXT NOT NULL DEFAULT 'Bureau' " +
+                                "CHECK (type_inventaire IN ('Bureau','Annuel'));";
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Migration du schéma échouée : " + ex.Message);
             }
         }
 
@@ -232,6 +276,7 @@ namespace InventoryApp.Data
 
             SqliteConnection.ClearAllPools(); // libère les verrous SQLite avant d'écraser le fichier
             File.Copy(cheminFichierSauvegarde, CheminBaseDonnees, overwrite: true);
+            MigrerSchema(); // une ancienne sauvegarde peut ne pas avoir les nouvelles colonnes
         }
 
         public static List<string> ListerSauvegardes()

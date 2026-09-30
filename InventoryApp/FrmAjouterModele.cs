@@ -32,6 +32,10 @@ namespace InventoryApp
         private Guna2Button btnNouvelleMarque = null!;
         private Guna2NumericUpDown numQteAlerte = null!;
         private Guna2NumericUpDown numQteInitiale = null!;
+        private Label lblQteInit = null!;
+
+        private bool _aDesMouvements = false;   // true si le modèle a au moins une ligne de mouvement
+        private int _quantiteExistante = 0;     // quantité en base à l'ouverture du formulaire
 
         private Guna2TextBox txtEmplacement = null!;
         private Guna2TextBox txtObservation = null!;
@@ -110,7 +114,7 @@ namespace InventoryApp
 
             // --- Ligne 3 : Quantité initiale/actuelle (colonne 1) | Quantité d'alerte (colonne 2) ---
             int y3 = y2 + 65;
-            var lblQteInit = new Label { Text = EnModeEdition ? "Stock actuel (lecture seule)" : "Stock initial", Left = col1_X, Top = y3, AutoSize = true, ForeColor = Color.DimGray };
+            lblQteInit = new Label { Text = EnModeEdition ? "Stock actuel" : "Stock initial", Left = col1_X, Top = y3, AutoSize = true, ForeColor = Color.DimGray };
             numQteInitiale = new Guna2NumericUpDown
             {
                 Left = col1_X,
@@ -203,6 +207,21 @@ namespace InventoryApp
 
             txtEmplacement.Text = row["emplacement"] == DBNull.Value ? "" : row["emplacement"].ToString();
             txtObservation.Text = row["observation"] == DBNull.Value ? "" : row["observation"].ToString();
+
+            // --- Règle sur la quantité ---
+            _quantiteExistante = (int)numQteInitiale.Value;
+
+            var nb = DatabaseHelper.ExecuteQuery(
+                "SELECT COUNT(*) AS nb FROM Ligne_mouvement WHERE modele_id=@id",
+                new SqliteParameter("@id", _modeleIdEnEdition!.Value));
+            _aDesMouvements = Convert.ToInt32(nb.Rows[0]["nb"]) > 0;
+
+            if (_aDesMouvements)
+            {
+                // Le stock ne peut plus qu'augmenter (interdit de descendre sous la valeur actuelle)
+                numQteInitiale.Minimum = _quantiteExistante;
+                lblQteInit.Text = "Stock actuel (augmentation seulement)";
+            }
         }
 
         private void BtnNouvelleCategorie_Click(object? sender, EventArgs e)
@@ -238,6 +257,14 @@ namespace InventoryApp
                 return;
             }
 
+            if (EnModeEdition && _aDesMouvements && (int)numQteInitiale.Value < _quantiteExistante)
+            {
+                MessageBox.Show(
+                    $"Ce modèle est lié à des mouvements : le stock ne peut pas être inférieur à {_quantiteExistante}.",
+                    "Quantité refusée", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             try
             {
                 using (var conn = DatabaseHelper.GetConnection())
@@ -260,7 +287,7 @@ namespace InventoryApp
                                 UPDATE Modele
                                 SET designation=@desig, categorie_id=@cat, marque_id=@marq, 
                                     reference=COALESCE(@ref, reference, 'AUTO-' || printf('%05d', id)),
-                                    qte_alerte=@qteAlerte, emplacement=@empl, observation=@obs, 
+                                    qte_alerte=@qteAlerte, quantite=@qte, emplacement=@empl, observation=@obs,
                                     date_modification=CURRENT_TIMESTAMP
                                 WHERE id=@id";
                             cmd.Parameters.AddWithValue("@id", _modeleIdEnEdition!.Value);
@@ -269,6 +296,7 @@ namespace InventoryApp
                             cmd.Parameters.AddWithValue("@cat", catValue);
                             cmd.Parameters.AddWithValue("@marq", marqValue);
                             cmd.Parameters.AddWithValue("@qteAlerte", Convert.ToInt32(numQteAlerte.Value));
+                            cmd.Parameters.AddWithValue("@qte", Convert.ToInt32(numQteInitiale.Value));
                             cmd.Parameters.AddWithValue("@empl", emplValue);
                             cmd.Parameters.AddWithValue("@obs", obsValue);
                             cmd.ExecuteNonQuery();
