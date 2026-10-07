@@ -94,7 +94,7 @@ namespace InventoryApp
             _mouvementId = mouvementId;
 
             Text = EnModeEdition ? "Modifier la ligne de mouvement" : "Ajouter une ligne de mouvement";
-            Size = new Size(460, 460);
+            Size = new Size(800, 460);
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.None;
             BackColor = Color.White;
@@ -137,7 +137,7 @@ namespace InventoryApp
 
             int y = 70;
             const int marge = 25;
-            const int largeur = 390;
+            const int largeur = 750;
 
             Label MakeLabel(string texte)
             {
@@ -243,7 +243,7 @@ namespace InventoryApp
             btnAjouter = new Guna2Button
             {
                 Text = EnModeEdition ? "Enregistrer" : "Ajouter à la liste",
-                Left = marge + 190,
+                Left = marge + largeur - 200,
                 Top = y,
                 Width = 200,
                 Height = 40,
@@ -272,6 +272,22 @@ namespace InventoryApp
             btnAnnuler.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
             Controls.Add(btnAjouter);
             Controls.Add(btnAnnuler);
+        }
+
+        // Ajuste la largeur de la liste déroulante pour afficher le texte complet de chaque élément
+        private static void AjusterLargeurListe(ComboBox cmb)
+        {
+            int max = cmb.Width;
+            using (var g = cmb.CreateGraphics())
+            {
+                foreach (var item in cmb.Items)
+                {
+                    int w = (int)g.MeasureString(cmb.GetItemText(item), cmb.Font).Width
+                            + SystemInformation.VerticalScrollBarWidth + 20;
+                    if (w > max) max = w;
+                }
+            }
+            cmb.DropDownWidth = max;
         }
 
         private void ChargerModeles()
@@ -329,6 +345,7 @@ namespace InventoryApp
                 cmbModele.DisplayMember = "affichage";
                 cmbModele.ValueMember = "id";
                 cmbModele.DataSource = t;
+                AjusterLargeurListe(cmbModele);
 
                 if (t.Rows.Count == 0)
                 {

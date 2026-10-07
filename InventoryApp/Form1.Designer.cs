@@ -36,6 +36,7 @@
             Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges2 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges3 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
+            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges6 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
             Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges7 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
             Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges8 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
             Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges9 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
@@ -82,13 +83,13 @@
             Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges42 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
             Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges43 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
             Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges44 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
-            Guna.UI2.WinForms.Suite.CustomizableEdges customizableEdges6 = new Guna.UI2.WinForms.Suite.CustomizableEdges();
             guna2Panel2 = new Guna.UI2.WinForms.Guna2Panel();
             flowLayoutPanel1 = new FlowLayoutPanel();
             guna2Panel4 = new Guna.UI2.WinForms.Guna2Panel();
             guna2CircleButton1 = new Guna.UI2.WinForms.Guna2CircleButton();
             btnDeconnexion = new Guna.UI2.WinForms.Guna2Button();
             lblUtilisateurConnecte = new Guna.UI2.WinForms.Guna2HtmlLabel();
+            guna2CirclePictureBox1 = new Guna.UI2.WinForms.Guna2CirclePictureBox();
             btnToAccueilcontainer = new Guna.UI2.WinForms.Guna2Button();
             btnToStockcontainer = new Guna.UI2.WinForms.Guna2Button();
             btnToRaportscontainer = new Guna.UI2.WinForms.Guna2Button();
@@ -118,10 +119,10 @@
             Modèlles = new TabPage();
             Categories = new TabPage();
             Marques = new TabPage();
-            guna2CirclePictureBox1 = new Guna.UI2.WinForms.Guna2CirclePictureBox();
             guna2Panel2.SuspendLayout();
             flowLayoutPanel1.SuspendLayout();
             guna2Panel4.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)guna2CirclePictureBox1).BeginInit();
             guna2Panel5.SuspendLayout();
             mom_container.SuspendLayout();
             repots_container.SuspendLayout();
@@ -134,7 +135,6 @@
             guna2Panel3.SuspendLayout();
             stock_container.SuspendLayout();
             stock_containers.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)guna2CirclePictureBox1).BeginInit();
             SuspendLayout();
             // 
             // guna2Panel2
@@ -226,6 +226,21 @@
             lblUtilisateurConnecte.Size = new Size(97, 17);
             lblUtilisateurConnecte.TabIndex = 12;
             lblUtilisateurConnecte.Text = "guna2HtmlLabel2";
+            // 
+            // guna2CirclePictureBox1
+            // 
+            guna2CirclePictureBox1.BackColor = Color.Transparent;
+            guna2CirclePictureBox1.Image = (Image)resources.GetObject("guna2CirclePictureBox1.Image");
+            guna2CirclePictureBox1.ImageRotate = 0F;
+            guna2CirclePictureBox1.Location = new Point(41, 48);
+            guna2CirclePictureBox1.Margin = new Padding(41, 10, 3, 10);
+            guna2CirclePictureBox1.Name = "guna2CirclePictureBox1";
+            guna2CirclePictureBox1.ShadowDecoration.CustomizableEdges = customizableEdges6;
+            guna2CirclePictureBox1.ShadowDecoration.Mode = Guna.UI2.WinForms.Enums.ShadowMode.Circle;
+            guna2CirclePictureBox1.Size = new Size(110, 110);
+            guna2CirclePictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
+            guna2CirclePictureBox1.TabIndex = 4;
+            guna2CirclePictureBox1.TabStop = false;
             // 
             // btnToAccueilcontainer
             // 
@@ -832,7 +847,7 @@
             // 
             Categories.Location = new Point(4, 44);
             Categories.Name = "Categories";
-            Categories.Size = new Size(1082, 546);
+            Categories.Size = new Size(1082, 567);
             Categories.TabIndex = 2;
             Categories.Text = "Categories";
             Categories.UseVisualStyleBackColor = true;
@@ -841,25 +856,10 @@
             // 
             Marques.Location = new Point(4, 44);
             Marques.Name = "Marques";
-            Marques.Size = new Size(1082, 546);
+            Marques.Size = new Size(1082, 567);
             Marques.TabIndex = 3;
             Marques.Text = "Marques";
             Marques.UseVisualStyleBackColor = true;
-            // 
-            // guna2CirclePictureBox1
-            // 
-            guna2CirclePictureBox1.BackColor = Color.Transparent;
-            guna2CirclePictureBox1.Image = (Image)resources.GetObject("guna2CirclePictureBox1.Image");
-            guna2CirclePictureBox1.ImageRotate = 0F;
-            guna2CirclePictureBox1.Location = new Point(41, 48);
-            guna2CirclePictureBox1.Margin = new Padding(41, 10, 3, 10);
-            guna2CirclePictureBox1.Name = "guna2CirclePictureBox1";
-            guna2CirclePictureBox1.ShadowDecoration.CustomizableEdges = customizableEdges6;
-            guna2CirclePictureBox1.ShadowDecoration.Mode = Guna.UI2.WinForms.Enums.ShadowMode.Circle;
-            guna2CirclePictureBox1.Size = new Size(110, 110);
-            guna2CirclePictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
-            guna2CirclePictureBox1.TabIndex = 4;
-            guna2CirclePictureBox1.TabStop = false;
             // 
             // Form1
             // 
@@ -870,12 +870,14 @@
             Controls.Add(mom_container);
             Controls.Add(guna2Panel2);
             Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "Form1";
             Text = "INVENTORY APP";
             guna2Panel2.ResumeLayout(false);
             flowLayoutPanel1.ResumeLayout(false);
             guna2Panel4.ResumeLayout(false);
             guna2Panel4.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)guna2CirclePictureBox1).EndInit();
             guna2Panel5.ResumeLayout(false);
             guna2Panel5.PerformLayout();
             mom_container.ResumeLayout(false);
@@ -889,7 +891,6 @@
             guna2Panel3.ResumeLayout(false);
             stock_container.ResumeLayout(false);
             stock_containers.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)guna2CirclePictureBox1).EndInit();
             ResumeLayout(false);
         }
 

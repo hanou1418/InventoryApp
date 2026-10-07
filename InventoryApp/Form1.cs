@@ -4,6 +4,8 @@ using System.Data;
 using System.Diagnostics;
 using System.Net;
 using System.Text;
+using Humanizer;
+using System.Globalization;
 
 namespace InventoryApp
 {
@@ -456,10 +458,34 @@ namespace InventoryApp
             }
         }
 
+        // ============================================================
+        // OUTILS : RÉFÉRENCE AUTOMATIQUE + QUANTITÉ EN LETTRES
+        // ============================================================
+
+        // Une référence générée automatiquement commence par "AUTO-" (ex. AUTO-00006)
+        private static bool EstReferenceAutomatique(string reference)
+        {
+            return !string.IsNullOrWhiteSpace(reference) &&
+                   reference.Trim().StartsWith("AUTO-", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // "12" -> "Douze (12)"
+        private static string FormaterQuantiteEnLettres(string quantite)
+        {
+            if (string.IsNullOrWhiteSpace(quantite)) return "";
+
+            if (!long.TryParse(quantite.Trim(), out long n) || n < 0)
+                return quantite.Trim();
+
+            string lettres = n.ToWords(new CultureInfo("fr-FR"));
+
+            return char.ToUpper(lettres[0]) + lettres.Substring(1) + " (" + n + ")";
+        }
+        
         private void ImprimerBonMouvement(DataGridViewRow row)
         {
             // ============================================================
-            // 1. RÉCUPÉRATION DES INFORMATIONS DU MOUVEMENT
+            // 1. INFORMATIONS DU MOUVEMENT
             // ============================================================
 
             int mouvementId = Convert.ToInt32(row.Cells["ID"].Value);
@@ -514,31 +540,31 @@ namespace InventoryApp
                 new List<Dictionary<string, string>>();
 
             string sqlLignes = @"
-        SELECT
-            lm.est_sortie,
-            lm.etat_a_la_mouvement,
-            lm.observation AS obs_ligne,
-            lm.quantite,
+                                    SELECT
+                                        lm.est_sortie,
+                                        lm.etat_a_la_mouvement,
+                                        lm.observation AS obs_ligne,
+                                        lm.quantite,
 
-            mod.designation AS designation_modele,
-            mod.reference AS reference_modele,
+                                        mod.designation AS designation_modele,
+                                        mod.reference AS reference_modele,
 
-            mrq.designation AS marque_nom,
-            cat.designation AS famille_nom
+                                        mrq.designation AS marque_nom,
+                                        cat.designation AS famille_nom
 
-        FROM Ligne_mouvement lm
+                                    FROM Ligne_mouvement lm
 
-        INNER JOIN Modele mod
-            ON lm.modele_id = mod.id
+                                    INNER JOIN Modele mod
+                                        ON lm.modele_id = mod.id
 
-        LEFT JOIN Marque mrq
-            ON mod.marque_id = mrq.id
+                                    LEFT JOIN Marque mrq
+                                        ON mod.marque_id = mrq.id
 
-        LEFT JOIN Categorie cat
-            ON mod.categorie_id = cat.id
+                                    LEFT JOIN Categorie cat
+                                        ON mod.categorie_id = cat.id
 
-        WHERE lm.mouvement_id = @id
-    ";
+                                    WHERE lm.mouvement_id = @id
+                                ";
 
             using (var conn = DatabaseHelper.GetConnection())
             {
@@ -614,194 +640,224 @@ namespace InventoryApp
             }
 
             // ============================================================
-            // 3. CONSTRUCTION DU DOCUMENT HTML
+            // 3. DOCUMENT HTML ET STYLE
             // ============================================================
 
             var html = new StringBuilder();
 
             html.Append(@"
-<!DOCTYPE html>
-<html dir='rtl' lang='ar'>
-<head>
-<meta charset='utf-8'>
+                            <!DOCTYPE html>
+                            <html dir='ltr' lang='fr'>
+                            <head>
+                            <meta charset='utf-8'>
 
-<style>
+                            <style>
 
-    @page {
-        size: A4;
-        margin: 18mm;
-    }
+                                @page {
+                                    size: A4;
+                                    margin: 18mm;
+                                }
 
-    body {
-        font-family: Arial, sans-serif;
-        margin: 25px;
-        color: #000;
-        direction: rtl;
-        text-align: right;
-        font-size: 14px;
-    }
+                                body {
+                                    font-family: Arial, 'Times New Roman', sans-serif;
+                                    margin: 0;
+                                    color: #000;
+                                    direction: ltr;
+                                    text-align: left;
+                                    font-size: 14px;
+                                }
 
-    .header-officiel {
-        margin-bottom: 20px;
-    }
+                                @media screen {
+                                    body { margin: 25px; }
+                                }
 
-    .republique {
-        text-align: center;
-        font-size: 24px;
-        font-weight: bold;
-        text-decoration: underline;
-        margin-bottom: 15px;
-    }
+                                /* La page fait la hauteur d'une feuille A4 (297mm - 2 x 18mm de marge)
+                                   pour pouvoir coller les signatures en bas. */
+                                .page {
+                                    display: flex;
+                                    flex-direction: column;
+                                    min-height: 255mm;
+                                }
 
-    .top-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-    }
+                                .contenu-page {
+                                    flex: 1 0 auto;
+                                }
 
-    .ministere {
-        text-align: right;
-        font-size: 16px;
-        font-weight: bold;
-        line-height: 1.8;
-        margin-bottom: 15px;
-    }
+                                .zone-signatures {
+                                    margin-top: auto;
+                                    padding-top: 30px;
+                                    page-break-inside: avoid;
+                                }
 
-    .ref-box {
-        font-size: 13px;
-        font-weight: bold;
-        text-align: left;
-        direction: ltr;
-        padding-top: 10px;
-    }
+                                .header-officiel {
+                                    margin-bottom: 20px;
+                                }
 
-    .title-container {
-        text-align: center;
-        margin: 25px 0 20px 0;
-    }
+                                .republique {
+                                    text-align: center;
+                                    font-size: 24px;
+                                    font-weight: bold;
+                                    text-decoration: underline;
+                                    margin-bottom: 15px;
+                                    direction: rtl;
+                                }
 
-    .title-box {
-        display: inline-block;
-        border: 1.5px solid #000;
-        padding: 5px 35px;
-        font-size: 22px;
-        font-weight: bold;
-    }
+                                .ministere {
+                                    text-align: right;
+                                    direction: rtl;
+                                    font-size: 16px;
+                                    font-weight: bold;
+                                    line-height: 1.8;
+                                    margin-bottom: 15px;
+                                }
 
-    .info-section {
-        font-size: 14px;
-        line-height: 1.8;
-        margin-bottom: 15px;
-        font-weight: bold;
-    }
+                                .ref-box {
+                                    text-align: left;
+                                    direction: ltr;
+                                    font-size: 13px;
+                                    font-weight: bold;
+                                    margin-top: 8px;
+                                }
 
-    .info-row {
-        margin-bottom: 4px;
-    }
+                                .title-container {
+                                    text-align: center;
+                                    margin: 25px 0 20px 0;
+                                }
 
-    .contenu-text {
-        font-size: 14px;
-        font-weight: normal;
-        margin: 15px 0 20px 0;
-        text-align: justify;
-        line-height: 1.8;
-    }
+                                .title-box {
+                                    display: inline-block;
+                                    border: 1.5px solid #000;
+                                    padding: 5px 35px;
+                                    font-size: 22px;
+                                    font-weight: bold;
+                                }
 
-    .section-title {
-        font-size: 16px;
-        font-weight: bold;
-        margin-top: 20px;
-        margin-bottom: 10px;
-        text-decoration: underline;
-    }
+                                .info-section {
+                                    font-size: 14px;
+                                    line-height: 1.8;
+                                    margin-bottom: 15px;
+                                    font-weight: bold;
+                                    direction: rtl;
+                                    text-align: right;
+                                }
 
-    /*
-       Ligne sans cadre.
-       L'affichage est de gauche vers la droite.
-    */
-    .mouvement-line {
-        border: none;
-        padding: 0;
-        margin: 0 0 8px 0;
+                                .info-row {
+                                    margin-bottom: 4px;
+                                }
 
-        direction: ltr;
-        text-align: left;
+                                .contenu-text {
+                                    font-size: 14px;
+                                    font-weight: normal;
+                                    margin: 15px 0 20px 0;
+                                    text-align: justify;
+                                    line-height: 1.8;
+                                    direction: rtl;
+                                }
 
-        font-family: Arial, sans-serif;
-        font-size: 13px;
-        line-height: 1.8;
+                                .section-title {
+                                    font-size: 16px;
+                                    font-weight: bold;
+                                    margin-top: 20px;
+                                    margin-bottom: 10px;
+                                    text-decoration: underline;
+                                    direction: rtl;
+                                    text-align: right;
+                                }
 
-        page-break-inside: avoid;
-    }
+                                /*
+                                   Pas de tableau et pas de cadre.
+                                   La ligne commence à gauche par un tiret.
+                                */
+                                .mouvement-line {
+                                    border: none;
+                                    outline: none;
+                                    box-shadow: none;
 
-    .mouvement-line::first-letter {
-        font-weight: bold;
-    }
+                                    display: block;
+                                    width: 100%;
 
-    .separator {
-        padding: 0 4px;
-    }
+                                    margin: 0 0 8px 0;
+                                    padding: 0;
 
-    .obs-section {
-        font-size: 14px;
-        margin-top: 18px;
-        font-weight: bold;
-        line-height: 1.8;
-    }
+                                    direction: ltr;
+                                    text-align: left;
 
-    .signatures-table {
-        width: 100%;
-        border: none;
-        margin-top: 45px;
-        border-collapse: collapse;
-    }
+                                    font-family: Arial, 'Times New Roman', sans-serif;
+                                    font-size: 13px;
+                                    line-height: 1.8;
 
-    .signatures-table td {
-        border: none;
-        font-size: 14px;
-        font-weight: bold;
-        text-align: center;
-        width: 50%;
-        vertical-align: top;
-        height: 100px;
-    }
+                                    white-space: normal;
+                                    page-break-inside: avoid;
+                                }
 
-    @media print {
-        .no-print {
-            display: none;
-        }
-    }
+                                .separateur {
+                                    padding-left: 4px;
+                                    padding-right: 4px;
+                                }
 
-</style>
-</head>
-<body>
-");
+                                .obs-section {
+                                    font-size: 14px;
+                                    margin-top: 18px;
+                                    font-weight: bold;
+                                    line-height: 1.8;
+                                    direction: rtl;
+                                    text-align: right;
+                                }
+
+                                .signatures-table {
+                                    width: 100%;
+                                    border: none;
+                                    margin-top: 0;
+                                    border-collapse: collapse;
+                                }
+
+                                .signatures-table td {
+                                    border: none;
+                                    font-size: 14px;
+                                    font-weight: bold;
+                                    text-align: center;
+                                    width: 50%;
+                                    vertical-align: top;
+                                    height: 80px;
+                                }
+
+                                @media print {
+                                    .no-print {
+                                        display: none;
+                                    }
+                                }
+
+                            </style>
+                            </head>
+                            <body>
+                            <div class='page'>
+                            <div class='contenu-page'>
+                            ");
 
             // ============================================================
-            // 4. EN-TÊTE ADMINISTRATIF
+            // 4. EN-TÊTE OFFICIEL
             // ============================================================
 
             html.Append(@"
-                    <div class='header-officiel'>
+                        <div class='header-officiel'>
 
-                        <div class='republique'>
-                            الجمهورية الجزائرية الديمقراطية الشعبية
-                        </div>
+                            <div class='republique'>
+                                الجمهورية الجزائرية الديمقراطية الشعبية
+                            </div>
 
-                        <div class='top-container'>
                             <div class='ministere'>
                                 <div>وزارة الداخليـــــة و الجماعات المحلية.</div>
                                 <div>ولايــــة غليزان</div>
                                 <div>مديرية المواصلات السلكية و اللاسلكية الوطنية</div>
                                 <div>مصلحة الادارة و الامداد / مكتب الوسائل العامة و المخزن.</div>
                             </div>
-                        </div>
-                    ");
+                        ");
 
             if (!string.IsNullOrWhiteSpace(refMouvement))
             {
                 html.Append(
-                    "<div class='ref-box'>Réf : " +
+                    "<div class='ref-box'>" +
+                    "Réf : " +
                     WebUtility.HtmlEncode(refMouvement) +
                     "</div>"
                 );
@@ -832,7 +888,8 @@ namespace InventoryApp
             if (!string.IsNullOrWhiteSpace(nomEmploye))
             {
                 html.Append(
-                    "<div class='info-row'>انا الممضي اسفله : " +
+                    "<div class='info-row'>" +
+                    "انا الممضي اسفله : " +
                     WebUtility.HtmlEncode(nomEmploye) +
                     "</div>"
                 );
@@ -859,7 +916,8 @@ namespace InventoryApp
                 }
 
                 html.Append(
-                    "<div class='info-row'>الوظيفة : " +
+                    "<div class='info-row'>" +
+                    "الوظيفة : " +
                     WebUtility.HtmlEncode(fonctionDepartement) +
                     "</div>"
                 );
@@ -868,7 +926,8 @@ namespace InventoryApp
             if (!string.IsNullOrWhiteSpace(dateMouvement))
             {
                 html.Append(
-                    "<div class='info-row'>بتاريخ : " +
+                    "<div class='info-row'>" +
+                    "بتاريخ : " +
                     WebUtility.HtmlEncode(dateMouvement) +
                     "</div>"
                 );
@@ -890,7 +949,7 @@ namespace InventoryApp
             }
 
             // ============================================================
-            // 8. FONCTIONS POUR LES ATTRIBUTS
+            // 8. FONCTIONS D'AFFICHAGE
             // ============================================================
 
             string Encoder(string valeur)
@@ -903,7 +962,10 @@ namespace InventoryApp
                 return WebUtility.HtmlEncode(valeur.Trim());
             }
 
-            void AjouterValeur(StringBuilder ligne, string libelle, string valeur, ref bool premier)
+            void AjouterValeurSansTitre(
+                StringBuilder ligne,
+                string valeur,
+                ref bool premier)
             {
                 if (string.IsNullOrWhiteSpace(valeur))
                 {
@@ -911,10 +973,39 @@ namespace InventoryApp
                 }
 
                 if (!premier)
-                { ligne.Append("<span class='separator'>, </span>"); }
+                {
+                    ligne.Append(
+                        "<span class='separateur'>, </span>"
+                    );
+                }
 
                 ligne.Append(
-                    WebUtility.HtmlEncode(libelle) +
+                    Encoder(valeur)
+                );
+
+                premier = false;
+            }
+
+            void AjouterValeurAvecTitre(
+                StringBuilder ligne,
+                string titre,
+                string valeur,
+                ref bool premier)
+            {
+                if (string.IsNullOrWhiteSpace(valeur))
+                {
+                    return;
+                }
+
+                if (!premier)
+                {
+                    ligne.Append(
+                        "<span class='separateur'>, </span>"
+                    );
+                }
+
+                ligne.Append(
+                    WebUtility.HtmlEncode(titre) +
                     ":" +
                     Encoder(valeur)
                 );
@@ -922,7 +1013,9 @@ namespace InventoryApp
                 premier = false;
             }
 
-            void GenererLignesMateriel(List<Dictionary<string, string>> items, string titreSection)
+            void GenererLignesMateriel(
+                List<Dictionary<string, string>> items,
+                string titreSection)
             {
                 if (items == null || items.Count == 0)
                 {
@@ -941,64 +1034,65 @@ namespace InventoryApp
 
                     bool premier = true;
 
-                    // Le premier élément est toujours précédé par un tiret.
+                    // Début obligatoire de chaque ligne
                     ligne.Append("- ");
 
-                    /*
-                     * Ordre d'affichage :
-                     * QTE, Famille, Marque, Désignation,
-                     * Référence, État, Observation
-                     */
-                    AjouterValeur(
-                        ligne,
-                        "QTE",
-                        item["quantite"],
-                        ref premier
-                    );
+                    // Quantité : en lettres + chiffres, sans titre "QTE"
+                    // Exemple : Douze (12)
+                    string qteTexte = FormaterQuantiteEnLettres(item["quantite"]);
 
-                    AjouterValeur(
+                    if (!string.IsNullOrEmpty(qteTexte))
+                    {
+                        ligne.Append(Encoder(qteTexte));
+                        premier = false;
+                    }
+
+                    // Ces colonnes sont affichées sans leurs titres
+                    AjouterValeurSansTitre(
                         ligne,
-                        "Famille",
                         item["famille_nom"],
                         ref premier
                     );
 
-                    AjouterValeur(
+                    AjouterValeurSansTitre(
                         ligne,
-                        "Marque",
                         item["marque_nom"],
                         ref premier
                     );
 
-                    AjouterValeur(
+                    AjouterValeurSansTitre(
                         ligne,
-                        "Désignation modèle",
                         item["designation_modele"],
                         ref premier
                     );
 
-                    AjouterValeur(
-                        ligne,
-                        "Réf",
-                        item["reference_modele"],
-                        ref premier
-                    );
+                    // Référence : masquée si elle est automatique (AUTO-xxxxx),
+                    // affichée dans tous les autres cas
+                    if (!EstReferenceAutomatique(item["reference_modele"]))
+                    {
+                        AjouterValeurSansTitre(
+                            ligne,
+                            item["reference_modele"],
+                            ref premier
+                        );
+                    }
 
-                    AjouterValeur(
+                    // État conserve son titre
+                    AjouterValeurAvecTitre(
                         ligne,
                         "État",
                         item["etat_a_la_mouvement"],
                         ref premier
                     );
 
-                    AjouterValeur(
+                    // Observation est affichée sans son titre
+                    AjouterValeurSansTitre(
                         ligne,
-                        "Observation",
                         item["obs_ligne"],
                         ref premier
                     );
 
-                    // Ne pas afficher une ligne complètement vide.
+                    // Affichage uniquement si au moins un champ existe
                     if (!premier)
                     {
                         html.Append(
@@ -1011,7 +1105,7 @@ namespace InventoryApp
             }
 
             // ============================================================
-            // 9. AFFICHAGE DES LIGNES DE MOUVEMENT
+            // 9. AFFICHAGE DES MATÉRIELS
             // ============================================================
 
             GenererLignesMateriel(
@@ -1025,34 +1119,40 @@ namespace InventoryApp
             );
 
             // ============================================================
-            // 10. OBSERVATION GÉNÉRALE
+            // 10. OBSERVATION GLOBALE
             // ============================================================
 
             if (!string.IsNullOrWhiteSpace(obsMouvement))
             {
                 html.Append(
                     "<div class='obs-section'>" +
+                    "ملاحظة : " +
                     WebUtility.HtmlEncode(obsMouvement) +
                     "</div>"
                 );
             }
 
             // ============================================================
-            // 11. SIGNATURES
+            // 11. SIGNATURES (toujours en bas de la page)
             // ============================================================
 
             html.Append(@"
+                            </div>
+                            <div class='zone-signatures'>
                             <table class='signatures-table'>
                                 <tr>
+
                                     <td>
-                                        إمضاء المكلف(ة) بمكتب الوسائل العامة و المخزن :
+                                        إمضاء المستلم(ة)
                                     </td>
 
                                     <td>
-                                        إمضاء المستلم(ة):
+                                        إمضاء المكلف(ة) بمكتب الوسائل العامة و المخزن 
                                     </td>
                                 </tr>
                             </table>
+                            </div>
+                            </div>
                             ");
 
             html.Append(@"
@@ -1061,7 +1161,7 @@ namespace InventoryApp
                             ");
 
             // ============================================================
-            // 12. ENREGISTREMENT ET OUVERTURE DU DOCUMENT
+            // 12. SAUVEGARDE ET OUVERTURE
             // ============================================================
 
             string tempFile = Path.Combine(

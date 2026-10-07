@@ -293,13 +293,24 @@ namespace InventoryApp
                                 COALESCE(md.emplacement, '—') AS 'Emplacement',
                                 COALESCE(md.observation, '—') AS 'Observation',
 
-                                -- Détails du dernier mouvement
+                                -- 3 derniers mouvements : à qui + employé
                                 COALESCE((
-                                    SELECT m.type_mouvement || ' (' || m.date_mouvement || ')'
-                                    FROM Ligne_mouvement lm
-                                    INNER JOIN Mouvement m ON lm.mouvement_id = m.id
-                                    WHERE lm.modele_id = md.id
-                                    ORDER BY m.id DESC LIMIT 1
+                                    SELECT GROUP_CONCAT(x.txt, ', ')
+                                    FROM (
+                                        SELECT NULLIF(TRIM(
+                                                   COALESCE(m.a_qui, '') ||
+                                                   CASE WHEN e.id IS NOT NULL
+                                                        THEN ' ' || char(34) || e.nom || ' ' || e.prenom || char(34)
+                                                        ELSE '' END
+                                               ), '') AS txt
+                                        FROM Mouvement m
+                                        LEFT JOIN Employe e ON m.employe_id = e.id
+                                        WHERE m.id IN (SELECT lm.mouvement_id
+                                                       FROM Ligne_mouvement lm
+                                                       WHERE lm.modele_id = md.id)
+                                        ORDER BY m.id DESC
+                                        LIMIT 3
+                                    ) x
                                 ), 'Aucun') AS 'Dernier Mouvement',
                                 md.qte_alerte AS 'Qté Alerte',
                                 md.date_creation AS 'Date Ajout'
@@ -581,7 +592,7 @@ namespace InventoryApp
             menu.Show(btnChoisirColonnes, new Point(0, btnChoisirColonnes.Height));
         }
 
-        // ───────────── IMPRESSION (style « ancien » : en-tête officiel + groupes) ─────────────
+        // ───────────── IMPRESSION ( en-tête officiel + groupes) ─────────────
 
         private static readonly string[] ColonnesGroupables = { "Catégorie", "Marque", "Emplacement" };
 
@@ -612,7 +623,7 @@ namespace InventoryApp
             html.Append("    <div>مصلحة الادارة و الامداد / مكتب الوسائل العامة و المخزن.</div>");
             html.Append("  </div></div>");   // ferme .ministere ET .header-officiel (sans la ligne de séparation)
         }
-
+        
         private static void OuvrirHtml(StringBuilder html, string nomFichier)
         {
             string tempFile = Path.Combine(Path.GetTempPath(), nomFichier);

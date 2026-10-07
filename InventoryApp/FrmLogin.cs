@@ -163,7 +163,7 @@ namespace InventoryApp
                 Width = 630,
                 Height = 30
             };
-            string txtMinistere = "وزارة الداخلية والجماعات المحلية والتهيئة العمرانية";
+            string txtMinistere = "وزارة الداخلية والجماعات المحلية والنقل";
 
             lblMinistere.Paint += (s, e) =>
             {
