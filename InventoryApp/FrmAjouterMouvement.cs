@@ -27,7 +27,7 @@ namespace InventoryApp
         public bool MouvementEnregistre { get; private set; } = false;
 
         private readonly Form1? _mainForm;
-        private readonly long? _mouvementIdToEdit; // Stocke l'ID si on est en mode modification
+        private long? _mouvementIdToEdit; // ID du bon : défini dès l'ouverture en modification, ou juste après le 1er enregistrement d'un nouveau bon
         private readonly BindingList<LigneMouvementTemp> _lignes = new BindingList<LigneMouvementTemp>();
 
         private Guna2ComboBox cmbEmploye = null!;
@@ -44,6 +44,8 @@ namespace InventoryApp
         private Guna2Button btnAjouterLigne = null!;
         private Guna2Button btnEnregistrer = null!;
         private Guna2Button btnAnnuler = null!;
+        private Guna2Button btnImprimer = null!;
+        private bool _modifie = false;   // true dès qu'un champ ou une ligne change depuis le dernier enregistrement
         private Label lblTitre = null!;
 
 
@@ -74,6 +76,7 @@ namespace InventoryApp
                     ChargerMouvementExistant(_mouvementIdToEdit.Value);
                 }
                 RafraichirGrille();
+                _modifie = false;   // le chargement initial n'est pas une modification de l'utilisateur
             };
         }
         private void ConstruireControles()
@@ -342,10 +345,108 @@ namespace InventoryApp
                 Cursor = Cursors.Hand
             };
 
+            // Bouton Imprimer (à gauche, aligné avec les boutons de validation).
+            // Grisé tant que le bon n'existe pas en base ; actif en modification et juste après l'enregistrement.
+            btnImprimer = new Guna2Button
+            {
+                Text = "Imprimer",
+                Left = margeG,
+                Top = y,
+                Width = 150,
+                Height = 42,
+                BorderRadius = 6,
+                FillColor = Color.White,
+                BorderColor = _primaryBlue,
+                BorderThickness = 1,
+                ForeColor = _primaryBlue,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold)
+            };
+            btnImprimer.DisabledState.FillColor = Color.FromArgb(232, 234, 238);
+            btnImprimer.DisabledState.BorderColor = Color.FromArgb(215, 218, 224);
+            btnImprimer.DisabledState.ForeColor = Color.FromArgb(160, 165, 175);
+            btnImprimer.Click += BtnImprimer_Click;
+            MettreAJourBoutonImprimer();
+
             btnEnregistrer.Click += BtnEnregistrer_Click;
-            btnAnnuler.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
+            // Si le bon a déjà été enregistré (bouton devenu "Fermer"), on renvoie OK pour que la liste se rafraîchisse.
+            btnAnnuler.Click += (s, e) => { DialogResult = MouvementEnregistre ? DialogResult.OK : DialogResult.Cancel; Close(); };
             Controls.Add(btnEnregistrer);
             Controls.Add(btnAnnuler);
+            Controls.Add(btnImprimer);
+
+            SuivreModifications();
+        }
+
+        // ------------------------------------------------------------------
+        // IMPRESSION
+        // ------------------------------------------------------------------
+
+        /// <summary>Le bouton n'est actif que si le bon existe en base (modification, ou déjà enregistré).</summary>
+        private void MettreAJourBoutonImprimer()
+        {
+            bool peutImprimer = _mouvementIdToEdit.HasValue && _mainForm != null;
+            btnImprimer.Enabled = peutImprimer;
+            btnImprimer.Cursor = peutImprimer ? Cursors.Hand : Cursors.Default;
+        }
+
+        /// <summary>Marque le formulaire comme "modifié" dès que l'utilisateur touche à un champ ou à une ligne.</summary>
+        private void SuivreModifications()
+        {
+            void Marquer(object? s, EventArgs e) => _modifie = true;
+
+            cmbEmploye.SelectedIndexChanged += Marquer;
+            cmbNomMouvement.SelectedIndexChanged += Marquer;
+            cmbTypeMouvement.SelectedIndexChanged += Marquer;
+            txtReference.TextChanged += Marquer;
+            txtObservationGenerale.TextChanged += Marquer;
+            txtAQui.TextChanged += Marquer;
+            txtContenu.TextChanged += Marquer;
+            dtpDateMouvement.ValueChanged += Marquer;
+            _lignes.ListChanged += (s, e) => _modifie = true;   // ajout / modification / suppression de ligne
+        }
+
+        private void BtnImprimer_Click(object? sender, EventArgs e)
+        {
+            if (!_mouvementIdToEdit.HasValue || _mainForm == null) return;
+
+            // L'impression relit la base : si des modifications ne sont pas enregistrées, on prévient.
+            if (_modifie)
+            {
+                var choix = MessageBox.Show(
+                    "Des modifications n'ont pas été enregistrées.\n\n" +
+                    "L'impression utilise la dernière version ENREGISTRÉE du bon.\n\n" +
+                    "Oui : enregistrer puis imprimer\n" +
+                    "Non : imprimer sans enregistrer\n" +
+                    "Annuler : ne pas imprimer",
+                    "Modifications non enregistrées",
+                    MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+
+                if (choix == DialogResult.Cancel) return;
+                if (choix == DialogResult.Yes && !Enregistrer(depuisImpression: true)) return;
+            }
+
+            try
+            {
+                _mainForm.ImprimerBonMouvementParId(_mouvementIdToEdit.Value);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Impossible d'imprimer le bon : " + ex.Message,
+                    "Erreur d'impression", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// Appelée juste après l'enregistrement d'un NOUVEAU bon : le formulaire reste ouvert mais se comporte
+        /// désormais comme en modification (un nouvel enregistrement fera un UPDATE, pas un second INSERT).
+        /// </summary>
+        private void PasserEnModeModification()
+        {
+            Text = "Modifier le mouvement";
+            lblTitre.Text = "MODIFIER LE MOUVEMENT DE STOCK";
+            btnEnregistrer.Text = "Mettre à jour";
+            btnAnnuler.Text = "Fermer";
+            MettreAJourBoutonImprimer();
         }
 
         private void DgvLignes_CellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
@@ -553,33 +654,39 @@ namespace InventoryApp
             }
         }
 
-        private void BtnEnregistrer_Click(object? sender, EventArgs e)
+        private void BtnEnregistrer_Click(object? sender, EventArgs e) => Enregistrer(depuisImpression: false);
+
+        /// <summary>
+        /// Valide puis enregistre le bon. Renvoie true si l'enregistrement a réussi.
+        /// depuisImpression = true : le formulaire reste ouvert (l'appelant imprime juste après).
+        /// </summary>
+        private bool Enregistrer(bool depuisImpression)
         {
             if (string.IsNullOrWhiteSpace(txtAQui.Text))
             {
                 MessageBox.Show("Le champ 'À qui' est obligatoire.", "Champ manquant",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 txtAQui.Focus();
-                return;
+                return false;
             }
             if (cmbNomMouvement.SelectedItem == null || cmbTypeMouvement.SelectedItem == null)
             {
                 MessageBox.Show("Le type de document et le type de mouvement sont obligatoires.", "Champs manquants",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                return false;
             }
             if (_lignes.Count == 0)
             {
                 MessageBox.Show("Ajoutez au moins une ligne avant d'enregistrer.", "Aucune ligne",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                return false;
             }
             if (cmbEmploye.SelectedIndex <= 0 || cmbEmploye.SelectedValue == DBNull.Value || cmbEmploye.SelectedValue == null)
             {
                 MessageBox.Show("Veuillez choisir un employé valide dans la liste.", "Employé obligatoire",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 cmbEmploye.Focus();
-                return;
+                return false;
             }
 
             string typeMouvement = cmbTypeMouvement.SelectedItem.ToString()!;
@@ -601,7 +708,7 @@ namespace InventoryApp
                         "Incohérence des lignes",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
-                    return;
+                    return false;
                 }
             }
             else
@@ -615,7 +722,7 @@ namespace InventoryApp
                         "Incohérence des lignes",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
-                    return;
+                    return false;
                 }
             }
 
@@ -623,8 +730,10 @@ namespace InventoryApp
             {
                 MessageBox.Show("Toutes les lignes doivent avoir une quantité supérieure à 0.", "Quantité invalide",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                return false;
             }
+
+            bool etaitNouveau = !_mouvementIdToEdit.HasValue;
 
             // Anti double-clic : évite deux enregistrements successifs du même mouvement
             btnEnregistrer.Enabled = false;
@@ -643,12 +752,32 @@ namespace InventoryApp
             if (resultat.Message != null)
             {
                 MessageBox.Show(resultat.Message, resultat.Titre, MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
+                return false;
             }
 
             MouvementEnregistre = true;
+            _modifie = false;
+
+            if (depuisImpression)
+            {
+                // Le bon existe déjà (le bouton Imprimer n'est actif qu'en modification) : on reste ouvert.
+                btnAnnuler.Text = "Fermer";
+                return true;
+            }
+
+            if (etaitNouveau)
+            {
+                // On reste ouvert pour permettre l'impression : le bouton Imprimer devient actif.
+                PasserEnModeModification();
+                MessageBox.Show(
+                    "Le bon a été enregistré.\n\nVous pouvez maintenant l'imprimer, puis cliquer sur « Fermer ».",
+                    "Enregistrement réussi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return true;
+            }
+
             DialogResult = DialogResult.OK;
             Close();
+            return true;
         }
 
         /// <summary>
@@ -851,6 +980,9 @@ namespace InventoryApp
                     InsererLignes(_lignes.Where(l => l.EstSortie));
 
                     tx.Commit();
+
+                    // Nouveau bon : on mémorise son id (sans effet en modification, l'id est déjà le même).
+                    _mouvementIdToEdit = mouvementId;
                     return (null, "");
                 }
                 // Toute sortie sans Commit (return / exception) => la transaction est annulée à sa libération.

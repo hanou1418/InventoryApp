@@ -30,7 +30,7 @@ namespace InventoryApp
         private System.Windows.Forms.Timer timerHeaderAnimation;
         private int posXText;
 
-        private const string TEXTE_HEADER = " République Algérienne Démocratique et Populaire __ Ministère de l'Intérieur, des Collectivités Locales et des Transports __ Direction Générale des Transmissions Nationales __ Direction des Transmissions Nationales de la Wilaya de Relizane     الجمهورية الجزائرية الديمقراطية الشعبية __ وزارة الداخلية والجماعات المحلية والتهيئة العمرانية __ المديرية العامة للمواصلات السلكية واللاسلكيةالوطنية __ مديرية المواصلات السلكية واللاسلكيةالوطنية لولاية غليزان";
+        private const string TEXTE_HEADER = " République Algérienne Démocratique et Populaire __ Ministère de l'Intérieur, des Collectivités Locales et des Transports __ Direction Générale des Transmissions Nationales __ Direction des Transmissions Nationales de la Wilaya de Relizane     الجمهورية الجزائرية الديمقراطية الشعبية __ وزارة الداخلية والجماعات المحلية والنقل __ المديرية العامة للمواصلات السلكية واللاسلكيةالوطنية __ مديرية المواصلات السلكية واللاسلكيةالوطنية لولاية غليزان";
         // Cartes statistiques
         private TableLayoutPanel layoutCards;
         private Label lblModelesNum;
@@ -146,7 +146,6 @@ namespace InventoryApp
             layoutCards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
             layoutCards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
             layoutCards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
-
             layoutCards.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
             Guna2Panel cardTotal = CreerCarte(
@@ -193,23 +192,45 @@ namespace InventoryApp
             panelToolbar.ShadowDecoration.Depth = 4;
             panelToolbar.ShadowDecoration.Color = Color.FromArgb(35, 0, 0, 0);
 
+            // Conteneur principal de la toolbar :
+            // colonne 0 = recherche, colonne 1 = boutons
+            TableLayoutPanel toolbarLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1,
+                Margin = new Padding(0),
+                Padding = new Padding(0)
+            };
+
+            // La recherche prend tout l'espace restant
+            toolbarLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+
+            // La colonne des boutons a une largeur FIXE (calculée plus bas
+            // d'après la taille réelle des boutons) : elle ne rétrécit jamais.
+            toolbarLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100F));
+
+            toolbarLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
             txtSearch = new Guna2TextBox
             {
                 PlaceholderText = "Recherche : nom, id, département...",
-                Dock = DockStyle.Left,
-                Width = 290,
+                Dock = DockStyle.Fill,
+                MinimumSize = new Size(120, 38),
                 BorderRadius = 8,
                 Font = new Font("Segoe UI", 9F),
-                Margin = new Padding(0)
+                Margin = new Padding(0, 0, 10, 0)
             };
             txtSearch.TextChanged += TxtSearch_TextChanged;
 
+            // Les boutons s'adaptent à leur texte.
+            // Ne pas mettre AutoSize sur ce FlowLayoutPanel.
             flowActions = new FlowLayoutPanel
             {
-                Dock = DockStyle.Right,
-                Width = 560,
+                Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.RightToLeft,
                 WrapContents = false,
+                AutoSize = false,
                 Padding = new Padding(0),
                 Margin = new Padding(0)
             };
@@ -240,8 +261,25 @@ namespace InventoryApp
             flowActions.Controls.Add(btnQuickAddModele);
             flowActions.Controls.Add(btnNewMovement);
 
-            panelToolbar.Controls.Add(flowActions);
-            panelToolbar.Controls.Add(txtSearch);
+            // Largeur totale nécessaire aux boutons (jamais réduite)
+            int largeurBoutons = 0;
+            foreach (Control c in flowActions.Controls)
+                largeurBoutons += c.Width + c.Margin.Horizontal;
+
+            toolbarLayout.ColumnStyles[1] = new ColumnStyle(SizeType.Absolute, largeurBoutons);
+            flowActions.MinimumSize = new Size(largeurBoutons, 0);
+
+            // Si la fenêtre est trop étroite : défilement horizontal
+            // au lieu d'écraser les boutons.
+            AutoScrollMinSize = new Size(
+                largeurBoutons + txtSearch.MinimumSize.Width
+                + panelToolbar.Padding.Horizontal + Padding.Horizontal + 20,
+                0);
+
+            toolbarLayout.Controls.Add(txtSearch, 0, 0);
+            toolbarLayout.Controls.Add(flowActions, 1, 0);
+
+            panelToolbar.Controls.Add(toolbarLayout);
 
             // ================= GRAPHIQUE =================
             panelChartSection = new Guna2Panel
@@ -376,15 +414,11 @@ namespace InventoryApp
             Controls.Add(layoutCards);
             Controls.Add(panelHeader);
 
-            //gridEmployes.CellContentClick += GridEmployes_CellContentClick;
             gridEmployes.CellMouseEnter += GridEmployes_CellMouseEnter;
             gridEmployes.CellMouseLeave += GridEmployes_CellMouseLeave;
 
             ResumeLayout(false);
-
-
         }
-
         // ================= ACTIONS =================
 
         private void BtnNewMovement_Click(object sender, EventArgs e)
@@ -1156,23 +1190,39 @@ namespace InventoryApp
             return card;
         }
 
-        private Guna2Button CreerBoutonAction(string texte, Color couleurFond)
+        private Guna2Button CreerBoutonAction(string texte, Color couleur)
         {
-            Guna2Button bouton = new Guna2Button
+            Font police = new Font("Segoe UI", 9F, FontStyle.Bold);
+
+            // Mesure réelle du texte (AutoSize de Guna2Button n'est pas fiable)
+            Size tailleTexte = TextRenderer.MeasureText(
+                texte,
+                police,
+                new Size(int.MaxValue, int.MaxValue),
+                TextFormatFlags.SingleLine | TextFormatFlags.NoPadding);
+
+            int largeur = tailleTexte.Width + 44;   // marge gauche/droite
+            const int hauteur = 38;
+
+            var btn = new Guna2Button
             {
                 Text = texte,
-                FillColor = couleurFond,
+
+                // Taille FIXE : le bouton ne rétrécit jamais
+                AutoSize = false,
+                Size = new Size(largeur, hauteur),
+                MinimumSize = new Size(largeur, hauteur),
+
+                Margin = new Padding(4, 0, 4, 0),
+
+                FillColor = couleur,
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
-                Height = 38,
-                Width = 125,
                 BorderRadius = 8,
-                Margin = new Padding(4, 3, 4, 3),
-                Cursor = Cursors.Hand
+                Font = police,
+                TextAlign = HorizontalAlignment.Center
             };
 
-            bouton.HoverState.FillColor = ControlPaint.Light(couleurFond);
-            return bouton;
+            return btn;
         }
 
         private Guna2DataGridView CreerDataGridView()

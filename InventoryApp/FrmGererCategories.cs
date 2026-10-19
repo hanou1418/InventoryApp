@@ -415,7 +415,7 @@ namespace InventoryApp
             }
             else if (colName == "colSupprimer")
             {
-                int nbModeles = Convert.ToInt32(tableCategoriesDataGridView.Rows[e.RowIndex].Cells["Modèles liés"].Value);
+                int nbModeles = Convert.ToInt32(tableCategoriesDataGridView.Rows[e.RowIndex].Cells["QTE Articles liés"].Value);
                 string designation = tableCategoriesDataGridView.Rows[e.RowIndex].Cells["Désignation"].Value?.ToString() ?? "";
 
                 if (nbModeles > 0)

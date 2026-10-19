@@ -377,7 +377,8 @@ namespace InventoryApp
             {
                 using (var frm = new FrmAjouterMouvement(this, mouvementId))
                 {
-                    if (frm.ShowDialog(this) == DialogResult.OK)
+                    // MouvementEnregistre : couvre le cas "enregistré via Imprimer puis fermé" (Annuler / Alt+F4)
+                    if (frm.ShowDialog(this) == DialogResult.OK || frm.MouvementEnregistre)
                     {
                         ChargerMouvements();
                         RafraichirAccueil();
@@ -481,46 +482,86 @@ namespace InventoryApp
 
             return char.ToUpper(lettres[0]) + lettres.Substring(1) + " (" + n + ")";
         }
-        
+
+        // Impression depuis la grille (bouton "Imprimer" de la ligne) : comportement inchangé.
         private void ImprimerBonMouvement(DataGridViewRow row)
+            => ImprimerBonMouvement(nomColonne => row.Cells[nomColonne].Value);
+
+        // Impression depuis le formulaire d'ajout / modification (FrmAjouterMouvement) :
+        // le bon est relu en base à partir de son id, avec EXACTEMENT les mêmes colonnes que la grille.
+        public void ImprimerBonMouvementParId(long mouvementId)
+        {
+            const string sql = @"
+                SELECT
+                    m.id AS 'ID',
+                    COALESCE(m.code_mouvement, 'BON-' || m.id) AS 'N° Bon',
+                    m.nom AS 'Nom Mouvement',
+                    m.reference AS 'Référence',
+                    m.type_mouvement AS 'Type',
+                    m.date_mouvement AS 'Date',
+                    (emp.nom || ' ' || emp.prenom) AS 'Employé',
+                    COALESCE(emp.departement, 'Sans Service') AS 'Département',
+                    COALESCE(emp.function, 'Emp') AS 'Fonction',
+                    m.observation AS 'Remarque',
+                    m.contenu AS 'Contenu'
+                FROM Mouvement m
+                LEFT JOIN Employe emp ON m.employe_id = emp.id
+                WHERE m.id = @id";
+
+            DataTable dt = DatabaseHelper.ExecuteQuery(sql, new SqliteParameter("@id", mouvementId));
+
+            if (dt.Rows.Count == 0)
+            {
+                MessageBox.Show("Ce bon de mouvement est introuvable dans la base.",
+                    "Impression impossible", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            DataRow ligne = dt.Rows[0];
+            ImprimerBonMouvement(nomColonne => ligne[nomColonne]);
+        }
+
+        // Cœur de l'impression : "champ" renvoie la valeur d'une colonne (ID, Référence, Employé, ...)
+        // que la source soit une ligne de grille ou une ligne lue en base.
+        private void ImprimerBonMouvement(Func<string, object> champ)
         {
             // ============================================================
             // 1. INFORMATIONS DU MOUVEMENT
             // ============================================================
 
-            int mouvementId = Convert.ToInt32(row.Cells["ID"].Value);
+            int mouvementId = Convert.ToInt32(champ("ID"));
 
             string refMouvement =
-                row.Cells["Référence"].Value?.ToString()
-                ?? row.Cells["N° Bon"].Value?.ToString()
+                champ("Référence")?.ToString()
+                ?? champ("N° Bon")?.ToString()
                 ?? "";
 
             string nomMouvement =
-                row.Cells["Nom Mouvement"].Value?.ToString()
+                champ("Nom Mouvement")?.ToString()
                 ?? "وصل استلام";
 
             string nomEmploye =
-                row.Cells["Employé"].Value?.ToString()
+                champ("Employé")?.ToString()
                 ?? "";
 
             string deptEmploye =
-                row.Cells["Département"].Value?.ToString()
+                champ("Département")?.ToString()
                 ?? "";
 
             string fonctionEmploye =
-                row.Cells["Fonction"].Value?.ToString()
+                champ("Fonction")?.ToString()
                 ?? "";
 
             string dateMouvement =
-                row.Cells["Date"].Value?.ToString()
+                champ("Date")?.ToString()
                 ?? "";
 
             string obsMouvement =
-                row.Cells["Remarque"].Value?.ToString()
+                champ("Remarque")?.ToString()
                 ?? "";
 
             string contenuMouvement =
-                row.Cells["Contenu"].Value?.ToString()
+                champ("Contenu")?.ToString()
                 ?? "";
 
             if (string.IsNullOrWhiteSpace(contenuMouvement))
@@ -664,7 +705,7 @@ namespace InventoryApp
                                     color: #000;
                                     direction: ltr;
                                     text-align: left;
-                                    font-size: 14px;
+                                    font-size: 16px;
                                 }
 
                                 @media screen {
@@ -695,7 +736,7 @@ namespace InventoryApp
 
                                 .republique {
                                     text-align: center;
-                                    font-size: 24px;
+                                    font-size: 28px;
                                     font-weight: bold;
                                     text-decoration: underline;
                                     margin-bottom: 15px;
@@ -705,8 +746,7 @@ namespace InventoryApp
                                 .ministere {
                                     text-align: right;
                                     direction: rtl;
-                                    font-size: 16px;
-                                    font-weight: bold;
+                                    font-size: 18px;
                                     line-height: 1.8;
                                     margin-bottom: 15px;
                                 }
@@ -714,8 +754,7 @@ namespace InventoryApp
                                 .ref-box {
                                     text-align: left;
                                     direction: ltr;
-                                    font-size: 13px;
-                                    font-weight: bold;
+                                    font-size: 18px;
                                     margin-top: 8px;
                                 }
 
@@ -728,12 +767,13 @@ namespace InventoryApp
                                     display: inline-block;
                                     border: 1.5px solid #000;
                                     padding: 5px 35px;
-                                    font-size: 22px;
+                                    font-size: 28
+px;
                                     font-weight: bold;
                                 }
 
                                 .info-section {
-                                    font-size: 14px;
+                                    font-size: 18px;
                                     line-height: 1.8;
                                     margin-bottom: 15px;
                                     font-weight: bold;
@@ -746,7 +786,7 @@ namespace InventoryApp
                                 }
 
                                 .contenu-text {
-                                    font-size: 14px;
+                                    font-size: 18px;
                                     font-weight: normal;
                                     margin: 15px 0 20px 0;
                                     text-align: justify;
@@ -755,7 +795,7 @@ namespace InventoryApp
                                 }
 
                                 .section-title {
-                                    font-size: 16px;
+                                    font-size: 18px;
                                     font-weight: bold;
                                     margin-top: 20px;
                                     margin-bottom: 10px;
@@ -783,7 +823,7 @@ namespace InventoryApp
                                     text-align: left;
 
                                     font-family: Arial, 'Times New Roman', sans-serif;
-                                    font-size: 13px;
+                                    font-size: 18px;
                                     line-height: 1.8;
 
                                     white-space: normal;
@@ -813,7 +853,7 @@ namespace InventoryApp
 
                                 .signatures-table td {
                                     border: none;
-                                    font-size: 14px;
+                                    font-size: 16px;
                                     font-weight: bold;
                                     text-align: center;
                                     width: 50%;
@@ -1229,7 +1269,9 @@ namespace InventoryApp
         {
             using (var frm = new FrmAjouterMouvement(this))
             {
-                if (frm.ShowDialog(this) == DialogResult.OK)
+                // Le formulaire reste ouvert après l'enregistrement (pour imprimer) : on se fie donc
+                // à MouvementEnregistre et pas seulement au DialogResult.
+                if (frm.ShowDialog(this) == DialogResult.OK || frm.MouvementEnregistre)
                 {
                     ChargerMouvements();
                     RafraichirAccueil();
@@ -1358,7 +1400,7 @@ namespace InventoryApp
                 // Le type (Bureau / Annuel) est relu depuis la base par le formulaire
                 using (var frm = new FrmAjouterInventaire(this, inventaireId))
                 {
-                    if (frm.ShowDialog(this) == DialogResult.OK)
+                    if (frm.ShowDialog(this) == DialogResult.OK || frm.InventaireEnregistre)
                         ChargerInventaires();
                 }
             }
@@ -1395,12 +1437,44 @@ namespace InventoryApp
 
         // Impression au format EXACT de la fiche papier :
         // FICHE D'INVENTAIRE / STRUCTURE / BUREAU / DATE / N°-DESIGNATION-QTE-OBSERVATION
+        // Impression depuis la grille (bouton "Imprimer" de la ligne) : comportement inchangé.
         private void ImprimerFicheInventaire(int inventaireId, DataGridViewRow row)
+            => ImprimerFicheInventaire(inventaireId, nomColonne => row.Cells[nomColonne].Value);
+
+        // Impression depuis le formulaire d'ajout / modification (FrmAjouterInventaire) :
+        // la fiche est relue en base avec les mêmes colonnes que la grille.
+        public void ImprimerFicheInventaireParId(int inventaireId)
         {
-            string structure = row.Cells["Structure"].Value?.ToString() ?? "";
-            string bureau = row.Cells["Bureau"].Value?.ToString() ?? "";
-            string date = row.Cells["Date"].Value?.ToString() ?? "";
-            bool annuel = (row.Cells["Type"].Value?.ToString() ?? "Bureau") == "Annuel";
+            const string sql = @"
+                SELECT
+                    i.id AS 'ID',
+                    CASE WHEN i.type_inventaire = 'Annuel' THEN '—' ELSE i.structure END AS 'Structure',
+                    CASE WHEN i.type_inventaire = 'Annuel' THEN '—' ELSE i.bureau END AS 'Bureau',
+                    i.type_inventaire AS 'Type',
+                    i.date_inventaire AS 'Date'
+                FROM Inventaire i
+                WHERE i.id = @id";
+
+            DataTable dt = DatabaseHelper.ExecuteQuery(sql, new SqliteParameter("@id", inventaireId));
+
+            if (dt.Rows.Count == 0)
+            {
+                MessageBox.Show("Cette fiche d'inventaire est introuvable dans la base.",
+                    "Impression impossible", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            DataRow ligne = dt.Rows[0];
+            ImprimerFicheInventaire(inventaireId, nomColonne => ligne[nomColonne]);
+        }
+
+        // Cœur de l'impression : "champ" renvoie la valeur d'une colonne (Structure, Bureau, Date, Type).
+        private void ImprimerFicheInventaire(int inventaireId, Func<string, object> champ)
+        {
+            string structure = champ("Structure")?.ToString() ?? "";
+            string bureau = champ("Bureau")?.ToString() ?? "";
+            string date = champ("Date")?.ToString() ?? "";
+            bool annuel = (champ("Type")?.ToString() ?? "Bureau") == "Annuel";
             if (annuel) { structure = ""; bureau = ""; }   // affichés '—' dans la grille
 
             // MIGRATION : Ligne_inventaire référence directement modele_id désormais.
@@ -1527,7 +1601,8 @@ namespace InventoryApp
         {
             using (var frm = new FrmAjouterInventaire(this, null, type))
             {
-                if (frm.ShowDialog(this) == DialogResult.OK && frm.InventaireEnregistre)
+                frm.ShowDialog(this);
+                if (frm.InventaireEnregistre)
                     ChargerInventaires();
             }
         }
@@ -1678,6 +1753,6 @@ namespace InventoryApp
             ChargerOngletActifStock();
         }
 
-       
+
     }
 }

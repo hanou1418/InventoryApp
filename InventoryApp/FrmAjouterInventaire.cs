@@ -44,7 +44,7 @@ namespace InventoryApp
         public bool InventaireEnregistre { get; private set; } = false;
 
         private readonly Form1? _mainForm;
-        private readonly int? _inventaireIdEnEdition;
+        private int? _inventaireIdEnEdition;   // défini à l'ouverture en modification, ou juste après le 1er enregistrement
         private bool EnModeEdition => _inventaireIdEnEdition.HasValue;
 
         // Type de fiche : fixé à l'ouverture (ou relu depuis la base en modification)
@@ -63,6 +63,8 @@ namespace InventoryApp
         private Guna2Button btnAjouterLigne = null!;
         private Guna2Button btnEnregistrer = null!;
         private Guna2Button btnAnnuler = null!;
+        private Guna2Button btnImprimer = null!;
+        private bool _modifie = false;   // true dès qu'un champ ou une ligne change depuis le dernier enregistrement
         private Label lblTitre = null!;
 
         public FrmAjouterInventaire(Form1? mainForm, int? inventaireIdEnEdition = null,
@@ -96,6 +98,7 @@ namespace InventoryApp
             {
                 if (EnModeEdition) ChargerDonneesExistantes();
                 else if (EstAnnuel) ChargerLignesAutomatiques();
+                _modifie = false;   // le chargement initial n'est pas une modification de l'utilisateur
             };
         }
 
@@ -226,10 +229,35 @@ namespace InventoryApp
                 Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
+            // Bouton Imprimer (à gauche ; sa position verticale est fixée dans PositionnerControles).
+            // Grisé tant que la fiche n'existe pas en base ; actif en modification et juste après l'enregistrement.
+            btnImprimer = new Guna2Button
+            {
+                Text = "Imprimer",
+                Left = MargeG,
+                Width = 150,
+                Height = 42,
+                BorderRadius = 6,
+                FillColor = Color.White,
+                BorderColor = _primaryBlue,
+                BorderThickness = 1,
+                ForeColor = _primaryBlue,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold)
+            };
+            btnImprimer.DisabledState.FillColor = Color.FromArgb(232, 234, 238);
+            btnImprimer.DisabledState.BorderColor = Color.FromArgb(215, 218, 224);
+            btnImprimer.DisabledState.ForeColor = Color.FromArgb(160, 165, 175);
+            btnImprimer.Click += BtnImprimer_Click;
+            MettreAJourBoutonImprimer();
+
             btnEnregistrer.Click += BtnEnregistrer_Click;
-            btnAnnuler.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
+            // Si la fiche a déjà été enregistrée (bouton devenu "Fermer"), on renvoie OK pour que la liste se rafraîchisse.
+            btnAnnuler.Click += (s, e) => { DialogResult = InventaireEnregistre ? DialogResult.OK : DialogResult.Cancel; Close(); };
             Controls.Add(btnEnregistrer);
             Controls.Add(btnAnnuler);
+            Controls.Add(btnImprimer);
+
+            SuivreModifications();
         }
 
         /// <summary>Place les contrôles selon le type : Structure/Bureau masqués pour l'annuel.</summary>
@@ -261,6 +289,7 @@ namespace InventoryApp
 
             btnEnregistrer.Top = y;
             btnAnnuler.Top = y;
+            btnImprimer.Top = y;
 
             Height = y + 90;
         }
@@ -441,26 +470,100 @@ namespace InventoryApp
             }
         }
 
-        private void BtnEnregistrer_Click(object? sender, EventArgs e)
+        // ------------------------------------------------------------------
+        // IMPRESSION
+        // ------------------------------------------------------------------
+
+        /// <summary>Le bouton n'est actif que si la fiche existe en base (modification, ou déjà enregistrée).</summary>
+        private void MettreAJourBoutonImprimer()
+        {
+            bool peutImprimer = EnModeEdition && _mainForm != null;
+            btnImprimer.Enabled = peutImprimer;
+            btnImprimer.Cursor = peutImprimer ? Cursors.Hand : Cursors.Default;
+        }
+
+        /// <summary>Marque le formulaire comme "modifié" dès que l'utilisateur touche à un champ ou à une ligne.</summary>
+        private void SuivreModifications()
+        {
+            void Marquer(object? s, EventArgs e) => _modifie = true;
+
+            txtStructure.TextChanged += Marquer;
+            txtBureau.TextChanged += Marquer;
+            dtpDateInventaire.ValueChanged += Marquer;
+            _lignes.ListChanged += (s, e) => _modifie = true;   // ajout / modification / suppression de ligne
+        }
+
+        private void BtnImprimer_Click(object? sender, EventArgs e)
+        {
+            if (!_inventaireIdEnEdition.HasValue || _mainForm == null) return;
+
+            // L'impression relit la base : si des modifications ne sont pas enregistrées, on prévient.
+            if (_modifie)
+            {
+                var choix = MessageBox.Show(
+                    "Des modifications n'ont pas été enregistrées.\n\n" +
+                    "L'impression utilise la dernière version ENREGISTRÉE de la fiche.\n\n" +
+                    "Oui : enregistrer puis imprimer\n" +
+                    "Non : imprimer sans enregistrer\n" +
+                    "Annuler : ne pas imprimer",
+                    "Modifications non enregistrées",
+                    MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+
+                if (choix == DialogResult.Cancel) return;
+                if (choix == DialogResult.Yes && !Enregistrer(depuisImpression: true)) return;
+            }
+
+            try
+            {
+                _mainForm.ImprimerFicheInventaireParId(_inventaireIdEnEdition.Value);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Impossible d'imprimer la fiche : " + ex.Message,
+                    "Erreur d'impression", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// Appelée juste après l'enregistrement d'une NOUVELLE fiche : le formulaire reste ouvert mais se comporte
+        /// désormais comme en modification (un nouvel enregistrement fera un UPDATE, pas un second INSERT).
+        /// </summary>
+        private void PasserEnModeModification()
+        {
+            Text = "Modifier la fiche d'inventaire";
+            lblTitre.Text = TitreFiche();          // EnModeEdition est vrai : "MODIFIER ..."
+            btnEnregistrer.Text = "Mettre à jour";
+            btnAnnuler.Text = "Fermer";
+            MettreAJourBoutonImprimer();
+        }
+
+        private void BtnEnregistrer_Click(object? sender, EventArgs e) => Enregistrer(depuisImpression: false);
+
+        /// <summary>
+        /// Valide puis enregistre la fiche. Renvoie true si l'enregistrement a réussi.
+        /// depuisImpression = true : le formulaire reste ouvert (l'appelant imprime juste après).
+        /// </summary>
+        private bool Enregistrer(bool depuisImpression)
         {
             // Bureau : structure + bureau obligatoires. Annuel : champs masqués -> valeur vide en base.
             if (!EstAnnuel && (string.IsNullOrWhiteSpace(txtStructure.Text) || string.IsNullOrWhiteSpace(txtBureau.Text)))
             {
                 MessageBox.Show("Structure et Bureau sont obligatoires.", "Champs manquants",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                return false;
             }
             if (_lignes.Count == 0)
             {
                 MessageBox.Show("Ajoutez au moins une ligne avant d'enregistrer.", "Aucune ligne",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                return false;
             }
 
             string structure = EstAnnuel ? "" : txtStructure.Text.Trim();
             string bureau = EstAnnuel ? "" : txtBureau.Text.Trim();
             string typeDb = InventaireSchema.ToDb(_type);
             string dateDb = dtpDateInventaire.Value.ToString("yyyy-MM-dd");
+            bool etaitNouvelle = !EnModeEdition;
 
             using (var conn = DatabaseHelper.GetConnection())
             {
@@ -530,6 +633,9 @@ namespace InventoryApp
                         }
 
                         tx.Commit();
+
+                        // Nouvelle fiche : on mémorise son id (sans effet en modification, l'id est déjà le même).
+                        _inventaireIdEnEdition = (int)inventaireId;
                     }
                     catch (SqliteException ex)
                     {
@@ -539,7 +645,7 @@ namespace InventoryApp
                             "Cause probable : un modèle référencé a été supprimé entre-temps.\n\n" +
                             "Détail : " + ex.Message,
                             "Erreur base de données", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        return;
+                        return false;
                     }
                     catch (Exception ex)
                     {
@@ -547,14 +653,34 @@ namespace InventoryApp
                         MessageBox.Show(
                             "Enregistrement annulé : aucune donnée n'a été modifiée.\n\nDétail : " + ex.Message,
                             "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        return;
+                        return false;
                     }
                 }
             }
 
             InventaireEnregistre = true;
+            _modifie = false;
+
+            if (depuisImpression)
+            {
+                // La fiche existe déjà (le bouton Imprimer n'est actif qu'en modification) : on reste ouvert.
+                btnAnnuler.Text = "Fermer";
+                return true;
+            }
+
+            if (etaitNouvelle)
+            {
+                // On reste ouvert pour permettre l'impression : le bouton Imprimer devient actif.
+                PasserEnModeModification();
+                MessageBox.Show(
+                    "La fiche a été enregistrée.\n\nVous pouvez maintenant l'imprimer, puis cliquer sur « Fermer ».",
+                    "Enregistrement réussi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return true;
+            }
+
             DialogResult = DialogResult.OK;
             Close();
+            return true;
         }
     }
 }
