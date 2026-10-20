@@ -623,12 +623,12 @@ namespace InventoryApp
             html.Append("    <div>مصلحة الادارة و الامداد / مكتب الوسائل العامة و المخزن.</div>");
             html.Append("  </div></div>");   // ferme .ministere ET .header-officiel (sans la ligne de séparation)
         }
-        
+
         private static void OuvrirHtml(StringBuilder html, string nomFichier)
         {
             string tempFile = Path.Combine(Path.GetTempPath(), nomFichier);
             File.WriteAllText(tempFile, html.ToString(), new UTF8Encoding(true));
-            Process.Start(new ProcessStartInfo(tempFile) { UseShellExecute = true });
+            SortieFiche.Proposer(tempFile, Path.ChangeExtension(nomFichier, ".pdf"));
         }
 
         /// <summary>Colonne de regroupement : celle du filtre si elle s'y prête, sinon « Catégorie ».</summary>

@@ -764,11 +764,10 @@ namespace InventoryApp
                                 }
 
                                 .title-box {
-                                    display: inline-block;
                                     border: 1.5px solid #000;
-                                    padding: 5px 35px;
-                                    font-size: 28
-px;
+                                    text-align: center;
+                                    padding: 5px 20px;
+                                    font-size: 28px !important;
                                     font-weight: bold;
                                 }
 
@@ -912,7 +911,7 @@ px;
             html.Append("<div class='title-container'>");
 
             html.Append(
-                "<span class='title-box'>- " +
+                "<span class='title-box' style='font-size:28px;'>- " +
                 WebUtility.HtmlEncode(nomMouvement) +
                 " -</span>"
             );
@@ -1215,13 +1214,14 @@ px;
                 Encoding.UTF8
             );
 
-            Process.Start(
-                new ProcessStartInfo(tempFile)
-                {
-                    UseShellExecute = true
-                }
-            );
+            SortieFiche.Proposer(tempFile, $"bon_mouvement_{mouvementId}.pdf");
+        
         }
+
+
+
+
+
 
         private void PeuplerListeFiltrageMVM()
         {
@@ -1543,8 +1543,13 @@ px;
 
             string tempFile = Path.Combine(Path.GetTempPath(), $"fiche_inventaire_{inventaireId}_{DateTime.Now:yyyyMMdd_HHmmss}.html");
             File.WriteAllText(tempFile, html.ToString(), Encoding.UTF8);
-            Process.Start(new ProcessStartInfo(tempFile) { UseShellExecute = true });
+            SortieFiche.Proposer(tempFile, $"fiche_inventaire_{inventaireId}.pdf");
         }
+
+
+
+
+
 
         private void PeuplerListeFiltrageINV()
         {
